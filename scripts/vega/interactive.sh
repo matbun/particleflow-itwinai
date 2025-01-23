@@ -1,5 +1,21 @@
 #!/bin/bash
 
+env(){
+    # Load env modules
+
+    ml --force purge
+    ml Python/3.11.5-GCCcore-13.2.0 
+    ml CMake/3.24.3-GCCcore-11.3.0
+    ml mpi4py
+    ml OpenMPI
+    ml CUDA/12.3
+    ml GCCcore/11.3.0
+    ml NCCL
+    ml cuDNN/8.9.7.29-CUDA-12.3.0
+    ml UCX-CUDA/1.15.0-GCCcore-13.2.0-CUDA-12.3.0
+    module unload OpenSSL
+}
+
 alloc(){
     # Allocate a node interactively
     
@@ -59,7 +75,8 @@ run_itwinai(){
     RAY_CPUS=32
     RAY_GPUS=1
 
-    uv run python -u $PWD/mlpf/pyg_pipeline_itwinai.py \
+    uv run python -u \
+        $PWD/mlpf/pyg_pipeline_itwinai.py \
         --train \
         --ray-train \
         --config parameters/pytorch/pyg-clic-itwinai.yaml \
@@ -72,7 +89,7 @@ run_itwinai(){
         --gpu-batch-multiplier 8 \
         --num-workers 8 \
         --prefetch-factor 8 \
-        --experiments-dir $PWD/experiments \
         --local \
+        --experiments-dir $PWD/experiments \
         --num-epochs 2
 }

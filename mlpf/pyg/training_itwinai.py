@@ -1,7 +1,9 @@
+"""itwinai integration of MLPF"""
+
 import torch
 
 from pyg.mlpf import MLPF
-from pyg.PFDataset import get_interleaved_dataloaders #, Collater, PFDataset
+from pyg.PFDataset import get_interleaved_dataloaders  # , Collater, PFDataset
 from pyg.utils import (
     # unpack_predictions,
     # unpack_target,
@@ -16,10 +18,7 @@ from pyg.utils import (
     # count_parameters,
 )
 
-from .training import (
-    configure_model_trainable,
-    train_mlpf
-)
+from .training import configure_model_trainable, train_mlpf
 
 from itwinai.torch.trainer import TorchTrainer as ItwinaiTorchTrainer
 # from itwinai.components import DataGetter as ItwinaiDataGetter
@@ -54,7 +53,7 @@ class MLPFTrainer(ItwinaiTorchTrainer):
             rank=self.strategy.global_rank(),
             config=self.config.model_dump(),
             use_cuda=True,
-            use_ray=False
+            use_ray=False,
         )
         self.train_dataloader = loaders["train"]
         self.validation_dataloader = loaders["valid"]
@@ -71,43 +70,34 @@ class MLPFTrainer(ItwinaiTorchTrainer):
             "cos_phi_mode": config["model"]["cos_phi_mode"],
             "energy_mode": config["model"]["energy_mode"],
             "elemtypes_nonzero": ELEM_TYPES_NONZERO[config["dataset"]],
-            "learned_representation_mode": config["model"]["learned_representation_mode"],
+            "learned_representation_mode": config["model"][
+                "learned_representation_mode"
+            ],
             **config["model"][config["conv_type"]],
         }
         print(model_kwargs)
         self.model = MLPF(**model_kwargs)
-        self.optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=config["lr"]
-        )
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config["lr"])
         self.lr_scheduler = get_lr_schedule(
             config=config,
             opt=self.optimizer,
             epochs=config["num_epochs"],
             steps_per_epoch=len(self.train_dataloader),
-            last_epoch=False
+            last_epoch=False,
         )
 
         # TODO: move at the beginning of training explicitly
         configure_model_trainable(
-            model=self.model,
-            trainable=config["model"]["trainable"],
-            is_training=True
+            model=self.model, trainable=config["model"]["trainable"], is_training=True
         )
 
         if self.strategy.is_distributed:
-            self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(
-                self.model
-            )
+            self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
 
         distribute_kwargs = self.get_default_distributed_kwargs()
 
         # Distributed model, optimizer, and scheduler
-        (
-            self.model,
-            self.optimizer,
-            self.lr_scheduler
-        ) = self.strategy.distributed(
+        (self.model, self.optimizer, self.lr_scheduler) = self.strategy.distributed(
             self.model, self.optimizer, self.lr_scheduler, **distribute_kwargs
         )
 
@@ -120,6 +110,8 @@ class MLPFTrainer(ItwinaiTorchTrainer):
         # TODO: define dynamically
         dtype = torch.float32
         comet_experiment = None
+
+        # rank = self.strategy.global_rank() if self.strategy.is_distributed else "cpu"
 
         train_mlpf(
             rank=self.strategy.global_rank(),
