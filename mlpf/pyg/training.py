@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import glob
 
 # comet needs to be imported before torch
-from comet_ml import OfflineExperiment, Experiment  # noqa: F401, isort:skip
+# from comet_ml import OfflineExperiment, Experiment  # noqa: F401, isort:skip
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp

@@ -1,0 +1,46 @@
+apache-beam
+array-record
+autopep8
+awkward
+boost_histogram
+click
+comet-ml
+fastjet
+fsspec
+itwinai[torch]@git+https://github.com/interTwin-eu/itwinai
+# jupyter
+# jupyter-book
+# keras
+# keras-tuner
+matplotlib
+mplhep
+networkx
+nevergrad
+notebook
+numba
+numpy
+# onnx
+# onnxruntime
+pandas
+papermill
+# plotly
+# pre-commit
+protobuf
+pyarrow
+# pyg
+ray[tune,train]
+scikit-learn
+scikit-optimize
+scipy
+seaborn
+setGPU
+tensorboard
+# tensorflow==2.14.1
+tensorflow-datasets
+# tf2onnx
+torch
+torch_runstats
+tqdm
+uproot
+vector
+# zenodo_get
