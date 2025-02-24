@@ -50,7 +50,7 @@ module unload OpenSSL
 # You should have CUDA 12.3 now
 
 # make sure CUDA devices are visible
-export CUDA_VISIBLE_DEVICES="0,1,2,3"
+export CUDA_VISIBLE_DEVICES=$(seq -s, 0 $((SLURM_GPUS_PER_NODE - 1)))
 
 # # Get GPUs info per node
 # srun --cpu-bind=none --ntasks-per-node=1 --ntasks=$SLURM_NNODES bash -c 'echo -e "NODE hostname: $(hostname)\n$(nvidia-smi)\n\n"'
