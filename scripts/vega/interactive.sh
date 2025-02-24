@@ -36,6 +36,22 @@ term(){
     srun --jobid $1 --overlap --pty /bin/bash
 }
 
+ray(){
+    # Create a dumy Ray cluster of 2 nodes
+
+    uv run ray stop
+    uv run ray start \
+        --head \
+        --node-ip-address=127.0.0.1 \
+        --port=7639 \
+        --num-cpus 1
+    echo "HEAD NODE STARTED" 
+    uv run ray start \
+        --address=127.0.0.1:7639 \
+        --num-cpus 1
+    echo "WORKER NODE STARTED" 
+}
+
 run(){
     # CPU-only execution on login node
     
