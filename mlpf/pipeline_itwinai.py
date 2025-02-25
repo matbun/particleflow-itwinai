@@ -29,14 +29,42 @@ parser = argparse.ArgumentParser()
 # add default=None to all arparse arguments to ensure they do not override
 # values loaded from the config file given by --config unless explicitly given
 parser.add_argument("--config", type=str, default=None, help="yaml config")
-parser.add_argument("--prefix", type=str, default=None, help="prefix appended to result dir name")
-parser.add_argument("--data-dir", type=str, default=None, help="path to `tensorflow_datasets/`")
-parser.add_argument("--gpus", type=int, default=None, help="to use CPU set to 0; else e.g., 4")
-parser.add_argument("--gpu-batch-multiplier", type=int, default=None, help="Increase batch size per GPU by this constant factor")
-parser.add_argument("--num-workers", type=int, default=None, help="number of processes to load the data")
-parser.add_argument("--prefetch-factor", type=int, default=None, help="number of samples to fetch & prefetch at every call")
-parser.add_argument("--resume-training", type=str, default=None, help="training dir containing the checkpointed training to resume")
-parser.add_argument("--load", type=str, default=None, help="load checkpoint and continue training from previous epoch")
+parser.add_argument(
+    "--prefix", type=str, default=None, help="prefix appended to result dir name"
+)
+parser.add_argument(
+    "--data-dir", type=str, default=None, help="path to `tensorflow_datasets/`"
+)
+parser.add_argument(
+    "--gpus", type=int, default=None, help="to use CPU set to 0; else e.g., 4"
+)
+parser.add_argument(
+    "--gpu-batch-multiplier",
+    type=int,
+    default=None,
+    help="Increase batch size per GPU by this constant factor",
+)
+parser.add_argument(
+    "--num-workers", type=int, default=None, help="number of processes to load the data"
+)
+parser.add_argument(
+    "--prefetch-factor",
+    type=int,
+    default=None,
+    help="number of samples to fetch & prefetch at every call",
+)
+parser.add_argument(
+    "--resume-training",
+    type=str,
+    default=None,
+    help="training dir containing the checkpointed training to resume",
+)
+parser.add_argument(
+    "--load",
+    type=str,
+    default=None,
+    help="load checkpoint and continue training from previous epoch",
+)
 parser.add_argument(
     "--relaxed-load",
     action="store_true",
@@ -44,10 +72,16 @@ parser.add_argument(
     help="load parameters from the checkpoint model with the same name as the existing model, ignoring any missing parameters",
 )
 
-parser.add_argument("--train", action="store_true", default=None, help="initiates a training")
+parser.add_argument(
+    "--train", action="store_true", default=None, help="initiates a training"
+)
 parser.add_argument("--test", action="store_true", default=None, help="tests the model")
-parser.add_argument("--num-epochs", type=int, default=None, help="number of training epochs")
-parser.add_argument("--patience", type=int, default=None, help="patience before early stopping")
+parser.add_argument(
+    "--num-epochs", type=int, default=None, help="number of training epochs"
+)
+parser.add_argument(
+    "--patience", type=int, default=None, help="patience before early stopping"
+)
 parser.add_argument("--lr", type=float, default=None, help="learning rate")
 parser.add_argument(
     "--conv-type",
@@ -56,24 +90,84 @@ parser.add_argument(
     help="which graph layer to use",
     choices=["attention", "gnn_lsh", "mamba"],
 )
-parser.add_argument("--num-convs", type=int, default=None, help="number of cross-particle convolution (GNN, attention, Mamba) layers")
-parser.add_argument("--make-plots", action="store_true", default=None, help="make plots of the test predictions")
-parser.add_argument("--ntrain", type=int, default=None, help="training samples to use, if None use entire dataset")
-parser.add_argument("--ntest", type=int, default=None, help="training samples to use, if None use entire dataset")
-parser.add_argument("--nvalid", type=int, default=None, help="validation samples to use")
-parser.add_argument("--val-freq", type=int, default=None, help="run extra validation every val_freq training steps")
-parser.add_argument("--checkpoint-freq", type=int, default=None, help="epoch frequency for checkpointing")
-parser.add_argument("--hpo", type=str, default=None, help="perform hyperparameter optimization, name of HPO experiment")
-parser.add_argument("--ray-train", action="store_true", help="run training using Ray Train")
-parser.add_argument("--ray-local", action="store_true", default=None, help="run ray-train locally")
+parser.add_argument(
+    "--num-convs",
+    type=int,
+    default=None,
+    help="number of cross-particle convolution (GNN, attention, Mamba) layers",
+)
+parser.add_argument(
+    "--make-plots",
+    action="store_true",
+    default=None,
+    help="make plots of the test predictions",
+)
+parser.add_argument(
+    "--ntrain",
+    type=int,
+    default=None,
+    help="training samples to use, if None use entire dataset",
+)
+parser.add_argument(
+    "--ntest",
+    type=int,
+    default=None,
+    help="training samples to use, if None use entire dataset",
+)
+parser.add_argument(
+    "--nvalid", type=int, default=None, help="validation samples to use"
+)
+parser.add_argument(
+    "--val-freq",
+    type=int,
+    default=None,
+    help="run extra validation every val_freq training steps",
+)
+parser.add_argument(
+    "--checkpoint-freq",
+    type=int,
+    default=None,
+    help="epoch frequency for checkpointing",
+)
+parser.add_argument(
+    "--hpo",
+    type=str,
+    default=None,
+    help="perform hyperparameter optimization, name of HPO experiment",
+)
+parser.add_argument(
+    "--ray-train", action="store_true", help="run training using Ray Train"
+)
+parser.add_argument(
+    "--ray-local", action="store_true", default=None, help="run ray-train locally"
+)
 parser.add_argument("--ray-cpus", type=int, default=None, help="CPUs for ray-train")
 parser.add_argument("--ray-gpus", type=int, default=None, help="GPUs for ray-train")
-parser.add_argument("--raytune-num-samples", type=int, default=None, help="Number of samples to draw from search space")
+parser.add_argument(
+    "--raytune-num-samples",
+    type=int,
+    default=None,
+    help="Number of samples to draw from search space",
+)
 parser.add_argument("--comet", action="store_true", help="use comet ml logging")
-parser.add_argument("--comet-offline", action="store_true", help="save comet logs locally")
-parser.add_argument("--comet-step-freq", type=int, default=None, help="step frequency for saving comet metrics")
-parser.add_argument("--experiments-dir", type=str, default=None, help="base directory within which trainings are stored")
-parser.add_argument("--pipeline", action="store_true", default=None, help="test is running in pipeline")
+parser.add_argument(
+    "--comet-offline", action="store_true", help="save comet logs locally"
+)
+parser.add_argument(
+    "--comet-step-freq",
+    type=int,
+    default=None,
+    help="step frequency for saving comet metrics",
+)
+parser.add_argument(
+    "--experiments-dir",
+    type=str,
+    default=None,
+    help="base directory within which trainings are stored",
+)
+parser.add_argument(
+    "--pipeline", action="store_true", default=None, help="test is running in pipeline"
+)
 parser.add_argument(
     "--dtype",
     type=str,
@@ -88,7 +182,12 @@ parser.add_argument(
     help="attention type for self-attention layer",
     choices=["math", "efficient", "flash", "flash_external"],
 )
-parser.add_argument("--test-datasets", nargs="+", default=[], help="test samples to process")
+parser.add_argument(
+    "--test-datasets", nargs="+", default=[], help="test samples to process"
+)
+parser.add_argument(
+    "--itwinai-strategy", default="ddp", help="itwinai distributed strategy"
+)
 
 
 def get_outdir(resume_training, load):
@@ -109,11 +208,26 @@ def get_outdir(resume_training, load):
         assert os.path.isfile("{}/model_kwargs.pkl".format(outdir))
     return outdir
 
+
 def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
     """Create an itwinai pipeline for MLPF"""
     config["outdir"] = outdir
+    config["storage_path"] = Path(
+        args.experiments_dir if args.experiments_dir else "experiments"
+    ).resolve()
+    config["ray_cpus"] = args.ray_cpus
     # config["dist_backend"] = "gloo"
-    return Pipeline(steps=[MLPFTrainer(config=config, epochs=config["num_epochs"])])
+    return Pipeline(
+        steps=[
+            MLPFTrainer(
+                config=config,
+                epochs=config["num_epochs"],
+                strategy=args.itwinai_strategy,
+                checkpoints_location=Path(outdir) / "checkpoints",
+            )
+        ]
+    )
+
 
 def main():
     # https://github.com/pytorch/pytorch/issues/11201#issuecomment-895047235
@@ -132,9 +246,13 @@ def main():
         )
 
     logging.basicConfig(level=logging.INFO)
-    world_size = args.gpus if args.gpus > 0 else 1  # will be 1 for both cpu (args.gpu < 1) and single-gpu (1)
+    world_size = (
+        args.gpus if args.gpus > 0 else 1
+    )  # will be 1 for both cpu (args.gpu < 1) and single-gpu (1)
 
-    with open(args.config, "r") as stream:  # load config (includes: which physics samples, model params)
+    with open(
+        args.config, "r"
+    ) as stream:  # load config (includes: which physics samples, model params)
         config = yaml.safe_load(stream)
 
     # override some options for the pipeline test
@@ -152,12 +270,20 @@ def main():
                 config[ds]["cms"] = {
                     "physical_pu": {
                         "batch_size": config[ds]["cms"]["physical_pu"]["batch_size"],
-                        "samples": {"cms_pf_ttbar": config[ds]["cms"]["physical_pu"]["samples"]["cms_pf_ttbar"]},
+                        "samples": {
+                            "cms_pf_ttbar": config[ds]["cms"]["physical_pu"]["samples"][
+                                "cms_pf_ttbar"
+                            ]
+                        },
                     }
                 }
                 # load only the last config split
-                config[ds]["cms"]["physical_pu"]["samples"]["cms_pf_ttbar"]["splits"] = ["10"]
-            config["test_dataset"] = {"cms_pf_ttbar": config["test_dataset"]["cms_pf_ttbar"]}
+                config[ds]["cms"]["physical_pu"]["samples"]["cms_pf_ttbar"][
+                    "splits"
+                ] = ["10"]
+            config["test_dataset"] = {
+                "cms_pf_ttbar": config["test_dataset"]["cms_pf_ttbar"]
+            }
             config["test_dataset"]["cms_pf_ttbar"]["splits"] = ["10"]
 
     # override loaded config with values from command line args
@@ -170,7 +296,9 @@ def main():
         if outdir is None:
             outdir = create_experiment_dir(
                 prefix=(args.prefix or "") + Path(args.config).stem + "_",
-                experiments_dir=args.experiments_dir if args.experiments_dir else "experiments",
+                experiments_dir=args.experiments_dir
+                if args.experiments_dir
+                else "experiments",
             )
 
         # Save config for later reference. Note that saving happens after parameters are overwritten by cmd line args.
@@ -181,7 +309,7 @@ def main():
         # Run itwinai training
         print(f"outdir: {outdir}")
         itwinai_pipeline(config, args, outdir).execute()
-        
+
         # if args.ray_train:
         #     run_ray_training(config, args, outdir)
         # else:

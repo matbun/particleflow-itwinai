@@ -7,7 +7,8 @@ click
 comet-ml
 fastjet
 fsspec
-itwinai[torch]@git+https://github.com/interTwin-eu/itwinai@unified-trainers
+# itwinai[torch]@git+https://github.com/interTwin-eu/itwinai@unified-trainers
+itwinai[torch]@../itwinai
 # jupyter
 # jupyter-book
 # keras

@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 import tqdm
 import yaml
 import json
+
 # import sklearn
 # import sklearn.metrics
 import numpy as np
@@ -43,7 +44,9 @@ from mlpf.utils import create_comet_experiment
 from mlpf.model.plots import validation_plots
 
 
-def configure_model_trainable(model: MLPF, trainable: Union[str, List[str]], is_training: bool):
+def configure_model_trainable(
+    model: MLPF, trainable: Union[str, List[str]], is_training: bool
+):
     """Set only the given layers as trainable in the model"""
 
     if isinstance(model, torch.nn.parallel.DistributedDataParallel):
@@ -131,12 +134,18 @@ def train_epoch(
     if (world_size > 1) and (rank != 0):
         iterator = enumerate(train_loader)
     else:
-        iterator = tqdm.tqdm(enumerate(train_loader), total=len(train_loader), desc=f"Epoch {epoch} train loop on rank={rank}")
+        iterator = tqdm.tqdm(
+            enumerate(train_loader),
+            total=len(train_loader),
+            desc=f"Epoch {epoch} train loop on rank={rank}",
+        )
 
     for itrain, batch in iterator:
         batch = batch.to(rank, non_blocking=True)
 
-        with torch.autocast(device_type=device_type, dtype=dtype, enabled=device_type == "cuda"):
+        with torch.autocast(
+            device_type=device_type, dtype=dtype, enabled=device_type == "cuda"
+        ):
             loss_opt, loss, _, _, _ = model_step(batch, model, mlpf_loss)
 
         optimizer_step(model, loss_opt, optimizer, lr_schedule, scaler)
@@ -151,16 +160,25 @@ def train_epoch(
         step = (epoch - 1) * len(train_loader) + itrain
         if tensorboard_writer is not None and step % 100 == 0:
             log_open_files_to_tensorboard(tensorboard_writer, step)
-            log_step_to_tensorboard(batch, loss["Total"], lr_schedule, tensorboard_writer, step)
+            log_step_to_tensorboard(
+                batch, loss["Total"], lr_schedule, tensorboard_writer, step
+            )
             tensorboard_writer.flush()
 
             # Save step checkpoint
-            extra_state = {"step": step, "lr_schedule_state_dict": lr_schedule.state_dict()}
-            save_checkpoint(f"{checkpoint_dir}/step_weights.pth", model, optimizer, extra_state)
+            extra_state = {
+                "step": step,
+                "lr_schedule_state_dict": lr_schedule.state_dict(),
+            }
+            save_checkpoint(
+                f"{checkpoint_dir}/step_weights.pth", model, optimizer, extra_state
+            )
 
         if comet_experiment is not None and (itrain % comet_step_freq == 0):
             comet_experiment.log_metrics(loss, prefix="train", step=step)
-            comet_experiment.log_metric("learning_rate", lr_schedule.get_last_lr(), step=step)
+            comet_experiment.log_metric(
+                "learning_rate", lr_schedule.get_last_lr(), step=step
+            )
 
     # Average losses across steps
     num_steps = torch.tensor(float(len(train_loader)), device=rank, dtype=torch.float32)
@@ -170,7 +188,9 @@ def train_epoch(
     for loss_name in epoch_loss:
         if world_size > 1:
             torch.distributed.all_reduce(epoch_loss[loss_name])
-        epoch_loss[loss_name] = epoch_loss[loss_name].cpu().item() / num_steps.cpu().item()
+        epoch_loss[loss_name] = (
+            epoch_loss[loss_name].cpu().item() / num_steps.cpu().item()
+        )
 
     if world_size > 1:
         dist.barrier()
@@ -211,6 +231,7 @@ def eval_epoch(
     """
     import sklearn
     import sklearn.metrics
+
     model.eval()
     epoch_loss = {}
 
@@ -223,7 +244,11 @@ def eval_epoch(
     if (world_size > 1) and (rank != 0):
         iterator = enumerate(valid_loader)
     else:
-        iterator = tqdm.tqdm(enumerate(valid_loader), total=len(valid_loader), desc=f"Epoch {epoch} eval loop on rank={rank}")
+        iterator = tqdm.tqdm(
+            enumerate(valid_loader),
+            total=len(valid_loader),
+            desc=f"Epoch {epoch} eval loop on rank={rank}",
+        )
 
     for ival, batch in iterator:
         batch = batch.to(rank, non_blocking=True)
@@ -234,24 +259,36 @@ def eval_epoch(
         else:
             set_save_attention(model, outdir, False)
 
-        with torch.autocast(device_type=device_type, dtype=dtype, enabled=device_type == "cuda"):
+        with torch.autocast(
+            device_type=device_type, dtype=dtype, enabled=device_type == "cuda"
+        ):
             with torch.no_grad():
-                loss_opt, loss, ypred_raw, ypred, ytarget = model_step(batch, model, mlpf_loss)
+                loss_opt, loss, ypred_raw, ypred, ytarget = model_step(
+                    batch, model, mlpf_loss
+                )
 
         # Update confusion matrices
         cm_X_target += sklearn.metrics.confusion_matrix(
-            batch.X[:, :, 0][batch.mask].detach().cpu().numpy(), ytarget["cls_id"][batch.mask].detach().cpu().numpy(), labels=range(13)
+            batch.X[:, :, 0][batch.mask].detach().cpu().numpy(),
+            ytarget["cls_id"][batch.mask].detach().cpu().numpy(),
+            labels=range(13),
         )
         cm_X_pred += sklearn.metrics.confusion_matrix(
-            batch.X[:, :, 0][batch.mask].detach().cpu().numpy(), ypred["cls_id"][batch.mask].detach().cpu().numpy(), labels=range(13)
+            batch.X[:, :, 0][batch.mask].detach().cpu().numpy(),
+            ypred["cls_id"][batch.mask].detach().cpu().numpy(),
+            labels=range(13),
         )
         cm_id += sklearn.metrics.confusion_matrix(
-            ytarget["cls_id"][batch.mask].detach().cpu().numpy(), ypred["cls_id"][batch.mask].detach().cpu().numpy(), labels=range(13)
+            ytarget["cls_id"][batch.mask].detach().cpu().numpy(),
+            ypred["cls_id"][batch.mask].detach().cpu().numpy(),
+            labels=range(13),
         )
 
         # Save validation plots for first batch
         if (rank == 0 or rank == "cpu") and ival == 0:
-            validation_plots(batch, ypred_raw, ytarget, ypred, tensorboard_writer, epoch, outdir)
+            validation_plots(
+                batch, ypred_raw, ytarget, ypred, tensorboard_writer, epoch, outdir
+            )
 
         # Accumulate losses
         for loss_name in loss:
@@ -262,13 +299,28 @@ def eval_epoch(
     # Log confusion matrices
     if comet_experiment:
         comet_experiment.log_confusion_matrix(
-            matrix=cm_X_target, title="Element to target", row_label="X", column_label="target", epoch=epoch, file_name="cm_X_target.json"
+            matrix=cm_X_target,
+            title="Element to target",
+            row_label="X",
+            column_label="target",
+            epoch=epoch,
+            file_name="cm_X_target.json",
         )
         comet_experiment.log_confusion_matrix(
-            matrix=cm_X_pred, title="Element to pred", row_label="X", column_label="pred", epoch=epoch, file_name="cm_X_pred.json"
+            matrix=cm_X_pred,
+            title="Element to pred",
+            row_label="X",
+            column_label="pred",
+            epoch=epoch,
+            file_name="cm_X_pred.json",
         )
         comet_experiment.log_confusion_matrix(
-            matrix=cm_id, title="Target to pred", row_label="target", column_label="pred", epoch=epoch, file_name="cm_id.json"
+            matrix=cm_id,
+            title="Target to pred",
+            row_label="target",
+            column_label="pred",
+            epoch=epoch,
+            file_name="cm_id.json",
         )
 
     # Average losses across steps
@@ -279,7 +331,9 @@ def eval_epoch(
     for loss_name in epoch_loss:
         if world_size > 1:
             torch.distributed.all_reduce(epoch_loss[loss_name])
-        epoch_loss[loss_name] = epoch_loss[loss_name].cpu().item() / num_steps.cpu().item()
+        epoch_loss[loss_name] = (
+            epoch_loss[loss_name].cpu().item() / num_steps.cpu().item()
+        )
 
     if world_size > 1:
         dist.barrier()
@@ -401,24 +455,37 @@ def train_all_epochs(
 
         # Log metrics
         if comet_experiment:
-            comet_experiment.log_metrics(losses_train, prefix="epoch_train_loss", epoch=epoch)
-            comet_experiment.log_metrics(losses_valid, prefix="epoch_valid_loss", epoch=epoch)
-            comet_experiment.log_metric("learning_rate", lr_schedule.get_last_lr(), epoch=epoch)
+            comet_experiment.log_metrics(
+                losses_train, prefix="epoch_train_loss", epoch=epoch
+            )
+            comet_experiment.log_metrics(
+                losses_valid, prefix="epoch_valid_loss", epoch=epoch
+            )
+            comet_experiment.log_metric(
+                "learning_rate", lr_schedule.get_last_lr(), epoch=epoch
+            )
             comet_experiment.log_epoch_end(epoch)
 
         # Handle checkpointing and early stopping on rank 0
         if (rank == 0) or (rank == "cpu"):
             # Log learning rate
-            tensorboard_writer_train.add_scalar("epoch/learning_rate", lr_schedule.get_last_lr()[0], epoch)
+            tensorboard_writer_train.add_scalar(
+                "epoch/learning_rate", lr_schedule.get_last_lr()[0], epoch
+            )
 
             # Prepare checkpoint state
-            extra_state = {"epoch": epoch, "lr_schedule_state_dict": lr_schedule.state_dict()}
+            extra_state = {
+                "epoch": epoch,
+                "lr_schedule_state_dict": lr_schedule.state_dict(),
+            }
 
             # Save best model if validation loss improved
             if losses_valid["Total"] < best_val_loss:
                 best_val_loss = losses_valid["Total"]
                 stale_epochs = 0
-                save_checkpoint(f"{checkpoint_dir}/best_weights.pth", model, optimizer, extra_state)
+                save_checkpoint(
+                    f"{checkpoint_dir}/best_weights.pth", model, optimizer, extra_state
+                )
             else:
                 stale_epochs += 1
 
@@ -429,8 +496,12 @@ def train_all_epochs(
 
             # Update loss history
             for loss in losses_train:
-                tensorboard_writer_train.add_scalar(f"epoch/loss_{loss}", losses_train[loss], epoch)
-                tensorboard_writer_valid.add_scalar(f"epoch/loss_{loss}", losses_valid[loss], epoch)
+                tensorboard_writer_train.add_scalar(
+                    f"epoch/loss_{loss}", losses_train[loss], epoch
+                )
+                tensorboard_writer_valid.add_scalar(
+                    f"epoch/loss_{loss}", losses_valid[loss], epoch
+                )
 
             # Save epoch stats to JSON
             history_path = Path(outdir) / "history"
@@ -456,9 +527,9 @@ def train_all_epochs(
                 f"train_loss={losses_train['Total']:.4f} "
                 f"valid_loss={losses_valid['Total']:.4f} "
                 f"stale={stale_epochs} "
-                f"epoch_train_time={train_time/60:.2f}m "
-                f"epoch_valid_time={valid_time/60:.2f}m "
-                f"epoch_total_time={total_time/60:.2f}m "
+                f"epoch_train_time={train_time / 60:.2f}m "
+                f"epoch_valid_time={valid_time / 60:.2f}m "
+                f"epoch_total_time={total_time / 60:.2f}m "
                 f"eta={eta:.1f}m",
                 color="bold",
             )
@@ -467,19 +538,33 @@ def train_all_epochs(
             tensorboard_writer_train.flush()
             tensorboard_writer_valid.flush()
 
-            # evaluate the model at this epoch on test datasets, make plots, track metrics
-            testdir_name = f"_epoch_{epoch}"
-            for sample in config["enabled_test_datasets"]:
-                run_test(rank, world_size, config, outdir, model, sample, testdir_name, dtype)
-                plot_metrics = make_plots(outdir, sample, config["dataset"], testdir_name, config["ntest"])
-
-                # track the following jet metrics in tensorboard
-                for k in ["med", "iqr", "match_frac"]:
-                    tensorboard_writer_valid.add_scalar(
-                        "epoch/{}/jet_ratio/jet_ratio_target_to_pred_pt/{}".format(sample, k),
-                        plot_metrics["jet_ratio"]["jet_ratio_target_to_pred_pt"][k],
-                        epoch,
+            if config["test"]:
+                # evaluate the model at this epoch on test datasets, make plots, track metrics
+                testdir_name = f"_epoch_{epoch}"
+                for sample in config["enabled_test_datasets"]:
+                    run_test(
+                        rank,
+                        world_size,
+                        config,
+                        outdir,
+                        model,
+                        sample,
+                        testdir_name,
+                        dtype,
                     )
+                    plot_metrics = make_plots(
+                        outdir, sample, config["dataset"], testdir_name, config["ntest"]
+                    )
+
+                    # track the following jet metrics in tensorboard
+                    for k in ["med", "iqr", "match_frac"]:
+                        tensorboard_writer_valid.add_scalar(
+                            "epoch/{}/jet_ratio/jet_ratio_target_to_pred_pt/{}".format(
+                                sample, k
+                            ),
+                            plot_metrics["jet_ratio"]["jet_ratio_target_to_pred_pt"][k],
+                            epoch,
+                        )
 
         # Ray training specific logging
         if use_ray:
@@ -496,10 +581,19 @@ def train_all_epochs(
             if (rank == 0) or (rank == "cpu"):
                 with TemporaryDirectory() as temp_checkpoint_dir:
                     temp_checkpoint_dir = Path(temp_checkpoint_dir)
-                    save_checkpoint(temp_checkpoint_dir / "checkpoint.pth", model, optimizer, extra_state)
+                    save_checkpoint(
+                        temp_checkpoint_dir / "checkpoint.pth",
+                        model,
+                        optimizer,
+                        extra_state,
+                    )
                     ray.train.report(
                         metrics,
-                        checkpoint=ray.train.Checkpoint.from_directory(temp_checkpoint_dir) if rank == 0 else None,
+                        checkpoint=ray.train.Checkpoint.from_directory(
+                            temp_checkpoint_dir
+                        )
+                        if rank == 0
+                        else None,
                     )
             else:
                 ray.train.report(metrics)
@@ -513,7 +607,9 @@ def train_all_epochs(
         if world_size > 1:
             dist.barrier()
     # End loop over epochs, training completed
-    _logger.info(f"Training completed. Total time on device {rank}: {(time.time() - t0_initial)/60:.3f}min")
+    _logger.info(
+        f"Training completed. Total time on device {rank}: {(time.time() - t0_initial) / 60:.3f}min"
+    )
 
     # Clean up
     if (rank == 0) or (rank == "cpu"):
@@ -535,7 +631,12 @@ def run_test(rank, world_size, config, outdir, model, sample, testdir_name, dtyp
         ntest = config["ntest"] // len(split_configs)
 
     for split_config in split_configs:
-        ds = PFDataset(config["data_dir"], f"{sample}/{split_config}:{version}", "test", num_samples=ntest).ds
+        ds = PFDataset(
+            config["data_dir"],
+            f"{sample}/{split_config}:{version}",
+            "test",
+            num_samples=ntest,
+        ).ds
         dataset.append(ds)
     ds = torch.utils.data.ConcatDataset(dataset)
 
@@ -550,7 +651,18 @@ def run_test(rank, world_size, config, outdir, model, sample, testdir_name, dtyp
     test_loader = torch.utils.data.DataLoader(
         ds,
         batch_size=batch_size,
-        collate_fn=Collater(["X", "ytarget", "ytarget_pt_orig", "ytarget_e_orig", "ycand", "genjets", "targetjets"], ["genmet"]),
+        collate_fn=Collater(
+            [
+                "X",
+                "ytarget",
+                "ytarget_pt_orig",
+                "ytarget_e_orig",
+                "ycand",
+                "genjets",
+                "targetjets",
+            ],
+            ["genmet"],
+        ),
         sampler=sampler,
         num_workers=config["num_workers"],
         prefetch_factor=config["prefetch_factor"],
@@ -580,7 +692,9 @@ def run_test(rank, world_size, config, outdir, model, sample, testdir_name, dtyp
         raise Exception("not implemented")
 
     device_type = "cuda" if isinstance(rank, int) else "cpu"
-    with torch.autocast(device_type=device_type, dtype=dtype, enabled=device_type == "cuda"):
+    with torch.autocast(
+        device_type=device_type, dtype=dtype, enabled=device_type == "cuda"
+    ):
         run_predictions(
             world_size,
             rank,
@@ -609,7 +723,9 @@ def run(rank, world_size, config, outdir, logfile):
     if world_size > 1:
         os.environ["MASTER_ADDR"] = "localhost"
         os.environ["MASTER_PORT"] = "12355"
-        dist.init_process_group("nccl", rank=rank, world_size=world_size)  # (nccl should be faster than gloo)
+        dist.init_process_group(
+            "nccl", rank=rank, world_size=world_size
+        )  # (nccl should be faster than gloo)
 
     start_epoch = 1
     checkpoint_dir = Path(outdir) / "checkpoints"
@@ -621,7 +737,9 @@ def run(rank, world_size, config, outdir, logfile):
         _logger.info("model_kwargs: {}".format(model_kwargs))
 
         if config["conv_type"] == "attention":
-            model_kwargs["attention_type"] = config["model"]["attention"]["attention_type"]
+            model_kwargs["attention_type"] = config["model"]["attention"][
+                "attention_type"
+            ]
 
         model = MLPF(**model_kwargs).to(torch.device(rank))
         optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"])
@@ -644,16 +762,23 @@ def run(rank, world_size, config, outdir, logfile):
                 raise Exception("shape mismatch in {}, {}!={}".format(k, shp0, shp1))
 
         if len(missing_keys) > 0:
-            _logger.warning(f"The following parameters are missing in the checkpoint file {missing_keys}", color="red")
+            _logger.warning(
+                f"The following parameters are missing in the checkpoint file {missing_keys}",
+                color="red",
+            )
             if config["relaxed_load"]:
                 _logger.warning("Optimizer checkpoint will not be loaded", color="bold")
                 strict = False
             else:
-                _logger.warning("Use option --relaxed-load if you insist to ignore the missing parameters")
+                _logger.warning(
+                    "Use option --relaxed-load if you insist to ignore the missing parameters"
+                )
                 raise KeyError
 
         if (rank == 0) or (rank == "cpu"):
-            _logger.info("Loaded model weights from {}".format(config["load"]), color="bold")
+            _logger.info(
+                "Loaded model weights from {}".format(config["load"]), color="bold"
+            )
         if strict:
             model, optimizer = load_checkpoint(checkpoint, model, optimizer, strict)
         else:
@@ -669,7 +794,9 @@ def run(rank, world_size, config, outdir, logfile):
             "cos_phi_mode": config["model"]["cos_phi_mode"],
             "energy_mode": config["model"]["energy_mode"],
             "elemtypes_nonzero": ELEM_TYPES_NONZERO[config["dataset"]],
-            "learned_representation_mode": config["model"]["learned_representation_mode"],
+            "learned_representation_mode": config["model"][
+                "learned_representation_mode"
+            ],
             **config["model"][config["conv_type"]],
         }
         model = MLPF(**model_kwargs)
@@ -693,12 +820,18 @@ def run(rank, world_size, config, outdir, logfile):
 
     if config["train"]:
         if (rank == 0) or (rank == "cpu"):
-            save_HPs(config, model, model_kwargs, outdir)  # save model_kwargs and hyperparameters
+            save_HPs(
+                config, model, model_kwargs, outdir
+            )  # save model_kwargs and hyperparameters
             _logger.info("Creating experiment dir {}".format(outdir))
             _logger.info(f"Model directory {outdir}", color="bold")
 
         if config["comet"]:
-            comet_experiment = create_comet_experiment(config["comet_name"], comet_offline=config["comet_offline"], outdir=outdir)
+            comet_experiment = create_comet_experiment(
+                config["comet_name"],
+                comet_offline=config["comet_offline"],
+                outdir=outdir,
+            )
             comet_experiment.set_name(f"rank_{rank}_{Path(outdir).name}")
             comet_experiment.log_parameter("run_id", Path(outdir).name)
             comet_experiment.log_parameter("world_size", world_size)
@@ -707,7 +840,9 @@ def run(rank, world_size, config, outdir, logfile):
             comet_experiment.set_model_graph(model)
             comet_experiment.log_parameter(trainable_params, "trainable_params")
             comet_experiment.log_parameter(nontrainable_params, "nontrainable_params")
-            comet_experiment.log_parameter(trainable_params + nontrainable_params, "total_trainable_params")
+            comet_experiment.log_parameter(
+                trainable_params + nontrainable_params, "total_trainable_params"
+            )
             comet_experiment.log_code("mlpf/model/training.py")
             comet_experiment.log_code("mlpf/model/mlpf.py")
             comet_experiment.log_code("mlpf/model/utils.py")
@@ -729,7 +864,9 @@ def run(rank, world_size, config, outdir, logfile):
         )
         steps_per_epoch = len(loaders["train"])
         last_epoch = -1 if start_epoch == 1 else start_epoch - 1
-        lr_schedule = get_lr_schedule(config, optimizer, config["num_epochs"], steps_per_epoch, last_epoch)
+        lr_schedule = get_lr_schedule(
+            config, optimizer, config["num_epochs"], steps_per_epoch, last_epoch
+        )
 
         train_all_epochs(
             rank,
@@ -755,7 +892,9 @@ def run(rank, world_size, config, outdir, logfile):
             checkpoint_dir=checkpoint_dir,
         )
 
-        checkpoint = torch.load(f"{checkpoint_dir}/best_weights.pth", map_location=torch.device(rank))
+        checkpoint = torch.load(
+            f"{checkpoint_dir}/best_weights.pth", map_location=torch.device(rank)
+        )
         model, optimizer = load_checkpoint(checkpoint, model, optimizer)
 
     if not (config["load"] is None):
@@ -765,7 +904,9 @@ def run(rank, world_size, config, outdir, logfile):
 
     if config["test"]:
         for sample in config["enabled_test_datasets"]:
-            run_test(rank, world_size, config, outdir, model, sample, testdir_name, dtype)
+            run_test(
+                rank, world_size, config, outdir, model, sample, testdir_name, dtype
+            )
 
     # make plots only on a single machine
     if (rank == 0) or (rank == "cpu"):
@@ -784,7 +925,11 @@ def override_config(config: dict, args):
     for arg in vars(args):
         arg_value = getattr(args, arg)
         if (arg_value is not None) and (arg in config):
-            _logger.info("overriding config item {}={} with {} from cmdline".format(arg, config[arg], arg_value))
+            _logger.info(
+                "overriding config item {}={} with {} from cmdline".format(
+                    arg, config[arg], arg_value
+                )
+            )
             config[arg] = arg_value
 
     if not (args.attention_type is None):
@@ -814,13 +959,16 @@ def device_agnostic_run(config, world_size, outdir):
     _configLogger("mlpf", filename=logfile)
 
     if config["gpus"]:
-        assert (
-            world_size <= torch.cuda.device_count()
-        ), f"--gpus is too high (specified {world_size} gpus but only {torch.cuda.device_count()} gpus are available)"
+        assert world_size <= torch.cuda.device_count(), (
+            f"--gpus is too high (specified {world_size} gpus but only {torch.cuda.device_count()} gpus are available)"
+        )
 
         torch.cuda.empty_cache()
         if world_size > 1:
-            _logger.info(f"Will use torch.nn.parallel.DistributedDataParallel() and {world_size} gpus", color="purple")
+            _logger.info(
+                f"Will use torch.nn.parallel.DistributedDataParallel() and {world_size} gpus",
+                color="purple",
+            )
             for rank in range(world_size):
                 _logger.info(torch.cuda.get_device_name(rank), color="purple")
 
@@ -832,7 +980,10 @@ def device_agnostic_run(config, world_size, outdir):
             )
         elif world_size == 1:
             rank = 0
-            _logger.info(f"Will use single-gpu: {torch.cuda.get_device_name(rank)}", color="purple")
+            _logger.info(
+                f"Will use single-gpu: {torch.cuda.get_device_name(rank)}",
+                color="purple",
+            )
             run(rank, world_size, config, outdir, logfile)
 
     else:
