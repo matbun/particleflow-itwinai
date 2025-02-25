@@ -23,6 +23,7 @@ from utils import create_experiment_dir
 
 from itwinai.pipeline import Pipeline
 from model.trainer_itwinai import MLPFTrainer
+from model.trainer_itwinai2 import MLPFTrainer2
 
 parser = argparse.ArgumentParser()
 
@@ -188,6 +189,9 @@ parser.add_argument(
 parser.add_argument(
     "--itwinai-strategy", default="ddp", help="itwinai distributed strategy"
 )
+parser.add_argument(
+    "--itwinai-trainerv", default=1, type=int, help="itwinai trainer version"
+)
 
 
 def get_outdir(resume_training, load):
@@ -211,22 +215,38 @@ def get_outdir(resume_training, load):
 
 def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
     """Create an itwinai pipeline for MLPF"""
-    config["outdir"] = outdir
-    config["storage_path"] = Path(
-        args.experiments_dir if args.experiments_dir else "experiments"
-    ).resolve()
-    config["ray_cpus"] = args.ray_cpus
-    # config["dist_backend"] = "gloo"
-    return Pipeline(
-        steps=[
-            MLPFTrainer(
-                config=config,
-                epochs=config["num_epochs"],
-                strategy=args.itwinai_strategy,
-                checkpoints_location=Path(outdir) / "checkpoints",
-            )
-        ]
-    )
+    if args.itwinai_trainerv == 1:
+        config["outdir"] = outdir
+        config["storage_path"] = Path(
+            args.experiments_dir if args.experiments_dir else "experiments"
+        ).resolve()
+        config["ray_cpus"] = args.ray_cpus
+        return Pipeline(
+            steps=[
+                MLPFTrainer(
+                    config=config,
+                    epochs=config["num_epochs"],
+                    strategy=args.itwinai_strategy,
+                    checkpoints_location=Path(outdir) / "checkpoints",
+                )
+            ]
+        )
+    if args.itwinai_trainerv == 2:
+        config["outdir"] = outdir
+        config["storage_path"] = Path(
+            args.experiments_dir if args.experiments_dir else "experiments"
+        ).resolve()
+        config["ray_cpus"] = args.ray_cpus
+        return Pipeline(
+            steps=[
+                MLPFTrainer2(
+                    config=config,
+                    epochs=config["num_epochs"],
+                    strategy=args.itwinai_strategy,
+                    checkpoints_location=Path(outdir) / "checkpoints",
+                )
+            ]
+        )
 
 
 def main():

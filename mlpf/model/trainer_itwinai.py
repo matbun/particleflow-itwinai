@@ -167,7 +167,7 @@ class MLPFTrainer(ItwinaiTorchTrainer):
             from_checkpoint=from_checkpoint,
         )
 
-        # TODO: remove as it is already in the trainer
+        # TODO: remove as it is already in the base trainer
         if self.checkpoints_location:
             Path(self.checkpoints_location).mkdir(exist_ok=True, parents=True)
 
