@@ -105,7 +105,8 @@ run_itwinai(){
         --num-workers 8 \
         --prefetch-factor 8 \
         --experiments-dir $PWD/experiments \
-        --num-epochs 2 
+        --num-epochs 2  \
+        --itwinai-trainerv 2
 }
 
 run_itwinai_ray(){
@@ -126,6 +127,7 @@ run_itwinai_ray(){
     # Make mlpf visible
     export PYTHONPATH="$PWD:$PYTHONPATH"
 
+    # uv run python -Xfrozen_modules=off -m debugpy --listen 5678 --wait-for-client  \
     uv run python -u \
         $PWD/mlpf/pipeline_itwinai.py \
         --train \
@@ -141,5 +143,6 @@ run_itwinai_ray(){
         --num-workers 8 \
         --prefetch-factor 8 \
         --experiments-dir $PWD/experiments \
-        --num-epochs 2 
+        --num-epochs 2 \
+        --itwinai-trainerv 2
 }

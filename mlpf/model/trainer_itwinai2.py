@@ -34,7 +34,7 @@ from mlpf.model.mlpf import set_save_attention
 from ray.train import DataConfig, RunConfig, ScalingConfig
 from ray.train.torch import TorchConfig
 from ray.tune import TuneConfig
-
+from torch.utils.data import DistributedSampler
 from tqdm import tqdm
 
 from itwinai.torch.config import TrainingConfiguration
@@ -88,7 +88,7 @@ def get_histogram_figure(tensor: torch.Tensor, bins="auto") -> plt.Figure:
     Returns:
         plt.Figure: The generated histogram figure.
     """
-    tensor = tensor.cpu().numpy()  # Convert tensor to NumPy array
+    tensor = tensor.detach().cpu().numpy()  # Convert tensor to NumPy array
 
     # Compute histogram
     counts, bin_edges = np.histogram(tensor, bins=bins)
@@ -110,7 +110,9 @@ def get_histogram_figure(tensor: torch.Tensor, bins="auto") -> plt.Figure:
     ax.set_xlabel("Value")
     ax.set_ylabel("Frequency")
 
-    return fig  # Return the figure without saving
+    plt.close(fig)
+
+    return fig
 
 
 def visualize_confusion_matrix(
@@ -220,6 +222,7 @@ def visualize_confusion_matrix(
             )
 
     plt.tight_layout()
+    plt.close(fig)
     return fig
 
 
@@ -369,6 +372,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
         self.validation_dataloader = loaders["valid"]
 
     def get_interleaved_dataloaders(self):
+        assert self.strategy.is_distributed
         loaders = {}
         config = self.config.model_dump()
         for split in ["train", "valid"]:  # build train, valid dataset and dataloaders
@@ -400,9 +404,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                         ).ds
 
                         if self.strategy.is_main_worker:
-                            logging.info(
-                                f"{split}_dataset: {sample}, {len(ds)}", color="blue"
-                            )
+                            logging.info(f"{split}_dataset: {sample}, {len(ds)}")
 
                         dataset.append(ds)
                 dataset = torch.utils.data.ConcatDataset(dataset)
@@ -486,6 +488,35 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
     def execute(self):
         super().execute(train_dataset=None)
 
+    def _set_epoch_dataloaders(self, epoch: int):
+        """Sets epoch in the distributed sampler of a dataloader when using it.
+        Conside that now the dataloaders are of type InterleavedIterator.
+        """
+        if self.strategy.is_distributed:
+            for loader in self.train_dataloader.data_loaders:
+                if isinstance(loader.sampler, DistributedSampler):
+                    loader.sampler.set_epoch(epoch)
+            if self.validation_dataloader is not None:
+                for loader in self.validation_dataloader.data_loaders:
+                    if isinstance(loader.sampler, DistributedSampler):
+                        loader.sampler.set_epoch(epoch)
+            if self.test_dataloader is not None:
+                for loader in self.test_dataloader.data_loaders:
+                    if isinstance(loader.sampler, DistributedSampler):
+                        loader.sampler.set_epoch(epoch)
+
+    def set_epoch(self) -> None:
+        """Set current epoch at the beginning of training."""
+        if self.profiler is not None and self.epoch > 1:
+            # We don't want to start stepping until after the first epoch
+            self.profiler.step()
+
+        # The sheduler is already stepping at each batch
+        # if self.lr_scheduler:
+        #     self.lr_scheduler.step()
+
+        self._set_epoch_dataloaders(self.epoch - 1)
+
     def train(self) -> None:
         # TODO: define dynamically
         self.config.dtype = torch.float32
@@ -503,10 +534,10 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         self.scaler = torch.amp.GradScaler()
 
-        for epoch in range(self.epoch, self.epochs + 1):
+        for self.epoch in range(self.epoch, self.epochs + 1):
             epoch_start_time = time.time()
 
-            self.set_epoch(epoch - 1)
+            self.set_epoch()
 
             # Training epoch
             losses_train = self.train_epoch()
@@ -522,14 +553,14 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 # Metrics logging
                 for loss_name in losses_train.keys():
                     self.log(
-                        item=losses_train[loss_name].item(),
+                        item=losses_train[loss_name],
                         identifier="epoch_train_loss_" + loss_name,
                         kind="metric",
                         step=self.epoch,
                     )
                 for loss_name in losses_valid.keys():
                     self.log(
-                        item=losses_train[loss_name].item(),
+                        item=losses_train[loss_name],
                         identifier="epoch_valid_loss_" + loss_name,
                         kind="metric",
                         step=self.epoch,
@@ -582,7 +613,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                     metrics={
                         "loss": losses_train["Total"],
                         "val_loss": losses_valid["Total"],
-                        "epoch": epoch,
+                        "epoch": self.epoch,
                         **{f"train_{k}": v for k, v in losses_train.items()},
                         **{f"valid_{k}": v for k, v in losses_valid.items()},
                     },
@@ -600,11 +631,11 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                     "epoch_valid_time": valid_time,
                     "epoch_total_time": total_time,
                 }
-                with open(f"{history_path}/epoch_{epoch}.json", "w") as f:
+                with open(f"{history_path}/epoch_{self.epoch}.json", "w") as f:
                     json.dump(stats, f)
 
             # Test epoch
-            if self.test_every and epoch % self.test_every == 0:
+            if self.test_every and self.epoch % self.test_every == 0:
                 self.test_epoch()
 
             # Check early stopping
@@ -655,11 +686,13 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         if self.strategy.global_rank() == 0:
             # The gathered values are available only on the main worker (global rank == 0)
-            tot_steps = torch.sum(tot_steps)
+            tot_steps = torch.sum(torch.stack(tot_steps))
             tot_epoch_loss = {}
             for loss_name in epoch_loss:
                 tot_epoch_loss[loss_name] = (
-                    (torch.sum(tot_losses[loss_name]) / tot_steps).cpu().item()
+                    (torch.sum(torch.stack(tot_losses[loss_name])) / tot_steps)
+                    .cpu()
+                    .item()
                 )
             return tot_epoch_loss
 
@@ -726,6 +759,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             step=self.train_glob_step,
             batch_idx=batch_idx,
         )
+        return loss
 
     def validation_epoch(self):
         self.model.eval()
@@ -820,11 +854,13 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         if self.strategy.global_rank() == 0:
             # The gathered values are available only on the main worker (global rank == 0)
-            tot_steps = torch.sum(tot_steps)
+            tot_steps = torch.sum(torch.stack(tot_steps))
             tot_epoch_loss = {}
             for loss_name in epoch_loss:
                 tot_epoch_loss[loss_name] = (
-                    (torch.sum(tot_losses[loss_name]) / tot_steps).cpu().item()
+                    (torch.sum(torch.stack(tot_losses[loss_name])) / tot_steps)
+                    .cpu()
+                    .item()
                 )
             return tot_epoch_loss
 
@@ -876,6 +912,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 kind="figure",
                 step=self.epoch,
             )
+            plt.close(fig)
 
             fig = plt.figure(figsize=(5, 5))
             msk = (
@@ -896,6 +933,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 kind="figure",
                 step=self.epoch,
             )
+            plt.close(fig)
 
             fig = plt.figure(figsize=(5, 5))
             msk = (
@@ -920,6 +958,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 kind="figure",
                 step=self.epoch,
             )
+            plt.close(fig)
 
             fig = plt.figure(figsize=(5, 5))
             msk = (
@@ -944,6 +983,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 kind="figure",
                 step=self.epoch,
             )
+            plt.close(fig)
 
             fig = plt.figure(figsize=(5, 5))
             msk = (
@@ -968,6 +1008,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 kind="figure",
                 step=self.epoch,
             )
+            plt.close(fig)
 
             fig = plt.figure(figsize=(5, 5))
             msk = (
@@ -992,6 +1033,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 kind="figure",
                 step=self.epoch,
             )
+            plt.close(fig)
 
             fig = plt.figure()
             msk = X[:, 0] == xcls
@@ -1005,6 +1047,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 kind="figure",
                 step=self.epoch,
             )
+            plt.close(fig)
 
         try:
             self.log(
