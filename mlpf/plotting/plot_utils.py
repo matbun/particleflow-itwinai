@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 import scipy
-import sklearn
-import sklearn.metrics
+# import sklearn
+# import sklearn.metrics
 import tqdm
 import vector
 
@@ -964,6 +964,8 @@ def compute_distances(distribution_1, distribution_2, ratio):
 
 
 def plot_rocs(yvals, class_names, epoch=None, cp_dir=None, comet_experiment=None, title=None):
+    import sklearn
+    import sklearn.metrics
     ncls = len(yvals["gen_cls"][0, 0])
     plt.figure()
     for icls in range(ncls):

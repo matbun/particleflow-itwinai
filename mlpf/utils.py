@@ -2,7 +2,7 @@ import datetime
 import logging
 import platform
 from pathlib import Path
-from comet_ml import OfflineExperiment, Experiment  # isort:skip
+# from comet_ml import OfflineExperiment, Experiment  # isort:skip
 
 
 def create_experiment_dir(prefix=None, suffix=None, experiments_dir="experiments"):
@@ -20,6 +20,7 @@ def create_experiment_dir(prefix=None, suffix=None, experiments_dir="experiments
 
 
 def create_comet_experiment(comet_exp_name, comet_offline=False, outdir=None):
+    from comet_ml import OfflineExperiment, Experiment  # isort:skip
     try:
         if comet_offline:
             logging.info("Using comet-ml OfflineExperiment, saving logs locally.")

@@ -7,6 +7,7 @@ import argparse
 import logging
 import os
 from pathlib import Path
+from typing import Dict
 
 # comet needs to be imported before torch
 # from comet_ml import OfflineExperiment, Experiment  # noqa: F401, isort:skip
@@ -19,6 +20,9 @@ from mlpf.model.training import device_agnostic_run, override_config
 from mlpf.model.distributed_ray import run_hpo, run_ray_training
 from mlpf.model.PFDataset import SHARING_STRATEGY
 from utils import create_experiment_dir
+
+from itwinai.pipeline import Pipeline
+from model.trainer_itwinai import MLPFTrainer
 
 parser = argparse.ArgumentParser()
 
@@ -105,6 +109,11 @@ def get_outdir(resume_training, load):
         assert os.path.isfile("{}/model_kwargs.pkl".format(outdir))
     return outdir
 
+def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
+    """Create an itwinai pipeline for MLPF"""
+    config["outdir"] = outdir
+    # config["dist_backend"] = "gloo"
+    return Pipeline(steps=[MLPFTrainer(config=config, epochs=config["num_epochs"])])
 
 def main():
     # https://github.com/pytorch/pytorch/issues/11201#issuecomment-895047235
@@ -169,10 +178,14 @@ def main():
         with open((Path(outdir) / config_filename), "w") as file:
             yaml.dump(config, file)
 
-        if args.ray_train:
-            run_ray_training(config, args, outdir)
-        else:
-            device_agnostic_run(config, world_size, outdir)
+        # Run itwinai training
+        print(f"outdir: {outdir}")
+        itwinai_pipeline(config, args, outdir).execute()
+        
+        # if args.ray_train:
+        #     run_ray_training(config, args, outdir)
+        # else:
+        #     device_agnostic_run(config, world_size, outdir)
 
 
 if __name__ == "__main__":

@@ -68,11 +68,11 @@ run(){
         # --block &
     echo "RAY STARTED"
     
-    uv run python -u $PWD/mlpf/pyg_pipeline.py \
+    uv run python -u $PWD/mlpf/pipeline.py \
         --train \
         --ray-train \
-        --config parameters/pytorch/pyg-clic-itwinai.yaml \
-        --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clusters \
+        --config parameters/pytorch/pyg-clic.yaml \
+        --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
         --ntrain 500 \
         --nvalid 500 \
         --prefix foo_prefix \
@@ -92,11 +92,11 @@ run_itwinai(){
     RAY_GPUS=1
 
     uv run python -u \
-        $PWD/mlpf/pyg_pipeline_itwinai.py \
+        $PWD/mlpf/pipeline_itwinai.py \
         --train \
         --ray-train \
-        --config parameters/pytorch/pyg-clic-itwinai.yaml \
-        --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clusters \
+        --config parameters/pytorch/pyg-clic-.yaml \
+        --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
         --ntrain 500 \
         --nvalid 500 \
         --ray-cpus $RAY_CPUS \

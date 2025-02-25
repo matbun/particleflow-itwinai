@@ -1,6 +1,6 @@
 import torch
-import matplotlib
-import matplotlib.pyplot as plt
+# import matplotlib
+# import matplotlib.pyplot as plt
 import pandas
 import numpy as np
 import glob
@@ -21,6 +21,8 @@ def log_confusion_matrices(cm_X_target, cm_X_pred, cm_id, comet_experiment, epoc
 
 
 def validation_plots(batch, ypred_raw, ytarget, ypred, tensorboard_writer, epoch, outdir):
+    import matplotlib
+    import matplotlib.pyplot as plt
     X = batch.X[batch.mask].cpu()
     ytarget_flat = batch.ytarget[batch.mask].cpu()
     ypred_binary = ypred_raw[0][batch.mask].detach().cpu()

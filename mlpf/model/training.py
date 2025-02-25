@@ -7,13 +7,13 @@ from tempfile import TemporaryDirectory
 import tqdm
 import yaml
 import json
-import sklearn
-import sklearn.metrics
+# import sklearn
+# import sklearn.metrics
 import numpy as np
 from typing import Union, List
 
 # comet needs to be imported before torch
-from comet_ml import OfflineExperiment, Experiment  # noqa: F401, isort:skip
+# from comet_ml import OfflineExperiment, Experiment  # noqa: F401, isort:skip
 
 import torch
 import torch.distributed as dist
@@ -209,6 +209,8 @@ def eval_epoch(
     Returns:
         dict: Dictionary of epoch losses
     """
+    import sklearn
+    import sklearn.metrics
     model.eval()
     epoch_loss = {}
 

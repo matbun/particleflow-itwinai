@@ -2,13 +2,13 @@ import os
 import time
 from pathlib import Path
 
-import awkward
-import fastjet
-import mplhep
-import numpy as np
+# import awkward
+# import fastjet
+# import mplhep
+# import numpy as np
 import torch
 import tqdm
-import vector
+# import vector
 from jet_utils import match_two_jet_collections
 from plotting.plot_utils import (
     get_class_names,
@@ -34,6 +34,9 @@ from .utils import unpack_predictions, unpack_target
 
 
 def predict_one_batch(conv_type, model, i, batch, rank, jetdef, jet_ptcut, jet_match_dr, outpath, dir_name, sample):
+    import awkward
+    import fastjet
+    import vector
 
     # skip prediction if output exists
     outfile = f"{outpath}/preds{dir_name}/{sample}/pred_{rank}_{i}.parquet"
@@ -163,6 +166,8 @@ def run_predictions(world_size, rank, model, loader, sample, outpath, jetdef, je
 
 def make_plots(outpath, sample, dataset, dir_name="", ntest_files=-1):
     """Uses the predictions stored as .parquet files from run_predictions to make plots."""
+    import mplhep
+    import numpy as np
     ret_dict = {}
     mplhep.style.use(mplhep.styles.CMS)
     class_names = get_class_names(sample)

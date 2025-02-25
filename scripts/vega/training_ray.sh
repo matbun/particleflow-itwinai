@@ -121,20 +121,23 @@ echo "Starting training"
     # --nvalid 500 \
 
 # BS 96 is OK
-# tot DS size is about 1'800'000 datapoints
-uv run python -u $PWD/mlpf/pyg_pipeline.py \
+# --ntrain 700000 \
+# --nvalid $((500*SLURM_NNODES)) \
+# --gpu-batch-multiplier 90 \
+
+uv run python -u $PWD/mlpf/pipeline.py \
     --train \
     --ray-train \
-    --config parameters/pytorch/pyg-clic-itwinai.yaml \
-    --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clusters \
+    --config parameters/pytorch/pyg-clic.yaml \
+    --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
     --prefix "scaling_bl_ray_N_${SLURM_NNODES}_" \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
-    --gpu-batch-multiplier 90 \
+    --gpu-batch-multiplier 32 \
     --num-workers $((SLURM_CPUS_PER_TASK/SLURM_GPUS_PER_NODE)) \
     --prefetch-factor 8 \
-    --nvalid $((500*SLURM_NNODES)) \
-    --ntrain 700000 \
+    --nvalid 500 \
+    --ntrain 500 \
     --experiments-dir $PWD/experiments_scaling \
     --local \
     --num-epochs 2
