@@ -80,6 +80,8 @@ run(){
         --num-epochs 2
 }
 
+export ITWINAI_LOG_LEVEL=DEBUG
+
 run_itwinai(){
 
     RAY_CPUS=32
@@ -106,7 +108,7 @@ run_itwinai(){
         --prefetch-factor 8 \
         --experiments-dir $PWD/experiments \
         --num-epochs 2  \
-        --itwinai-trainerv 2
+        --itwinai-trainerv 3
 }
 
 run_itwinai_ray(){
@@ -114,15 +116,15 @@ run_itwinai_ray(){
     RAY_CPUS=32
     RAY_GPUS=0
     
-    uv run ray stop
-    uv run ray start \
-        --head \
-        --node-ip-address=localhost \
-        --port=7639 \
-        --num-cpus=$RAY_CPUS \
-        --num-gpus=$RAY_GPUS 
-        # --block &
-    echo "RAY STARTED"
+    # uv run ray stop
+    # uv run ray start \
+    #     --head \
+    #     --node-ip-address=localhost \
+    #     --port=7639 \
+    #     --num-cpus=$RAY_CPUS \
+    #     --num-gpus=$RAY_GPUS 
+    #     # --block &
+    # echo "RAY STARTED"
 
     # Make mlpf visible
     export PYTHONPATH="$PWD:$PYTHONPATH"
@@ -144,5 +146,5 @@ run_itwinai_ray(){
         --prefetch-factor 8 \
         --experiments-dir $PWD/experiments \
         --num-epochs 2 \
-        --itwinai-trainerv 2
+        --itwinai-trainerv 3
 }

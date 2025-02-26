@@ -322,10 +322,6 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             from_checkpoint=from_checkpoint,
         )
 
-        # TODO: remove as it is already in the base trainer
-        if self.checkpoints_location:
-            Path(self.checkpoints_location).mkdir(exist_ok=True, parents=True)
-
         self.ray_run_config = ray.train.RunConfig(
             name=Path(self.config.outdir).name,
             storage_path=self.config.storage_path,
@@ -372,7 +368,6 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
         self.validation_dataloader = loaders["valid"]
 
     def get_interleaved_dataloaders(self):
-        assert self.strategy.is_distributed
         loaders = {}
         config = self.config.model_dump()
         for split in ["train", "valid"]:  # build train, valid dataset and dataloaders
@@ -431,6 +426,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                     num_workers=config["num_workers"],
                     prefetch_factor=config["prefetch_factor"],
                     shuffle=split == "train",
+                    generator=self.torch_rng,
                     # pin_memory=use_cuda,
                     # pin_memory_device="cuda:{}".format(rank) if use_cuda else "",
                     drop_last=True,
@@ -548,51 +544,52 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             valid_time = time.time() - train_time - epoch_start_time
             total_time = time.time() - epoch_start_time
 
-            # Only in the main worker losses_train and losse_valid are not None!
-            if self.strategy.is_main_worker:
-                # Metrics logging
-                for loss_name in losses_train.keys():
-                    self.log(
-                        item=losses_train[loss_name],
-                        identifier="epoch_train_loss_" + loss_name,
-                        kind="metric",
-                        step=self.epoch,
-                    )
-                for loss_name in losses_valid.keys():
-                    self.log(
-                        item=losses_train[loss_name],
-                        identifier="epoch_valid_loss_" + loss_name,
-                        kind="metric",
-                        step=self.epoch,
-                    )
+            # Metrics logging
+            for loss_name in losses_train.keys():
                 self.log(
-                    item=self.lr_scheduler.get_last_lr()[0],
-                    identifier="learning_rate",
+                    item=losses_train[loss_name],
+                    identifier="epoch_train_loss_" + loss_name,
                     kind="metric",
                     step=self.epoch,
                 )
-                # Epoch times
+            for loss_name in losses_valid.keys():
                 self.log(
-                    item=train_time,
-                    identifier="epoch_train_time",
+                    item=losses_train[loss_name],
+                    identifier="epoch_valid_loss_" + loss_name,
                     kind="metric",
                     step=self.epoch,
                 )
-                self.log(
-                    item=valid_time,
-                    identifier="epoch_valid_time",
-                    kind="metric",
-                    step=self.epoch,
-                )
-                self.log(
-                    item=total_time,
-                    identifier="epoch_total_time",
-                    kind="metric",
-                    step=self.epoch,
-                )
+            self.log(
+                item=self.lr_scheduler.get_last_lr()[0],
+                identifier="learning_rate",
+                kind="metric",
+                step=self.epoch,
+            )
+            # Epoch times
+            self.log(
+                item=train_time,
+                identifier="epoch_train_time",
+                kind="metric",
+                step=self.epoch,
+            )
+            self.log(
+                item=valid_time,
+                identifier="epoch_valid_time",
+                kind="metric",
+                step=self.epoch,
+            )
+            self.log(
+                item=total_time,
+                identifier="epoch_total_time",
+                kind="metric",
+                step=self.epoch,
+            )
 
+            # Checkpointing
+            best_ckpt_path = None
+            periodic_ckpt_path = None
+            if self.strategy.is_main_worker:
                 # Save best model if validation loss improved
-                best_ckpt_path = None
                 if losses_valid["Total"] < self.best_validation_loss:
                     self.best_validation_loss = losses_valid["Total"]
                     stale_epochs = 0
@@ -608,18 +605,6 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                     name=f"epoch_{self.epoch:02d}-{losses_valid['Total']:.6f}"
                 )
 
-                # Ray report
-                self.ray_report(
-                    metrics={
-                        "loss": losses_train["Total"],
-                        "val_loss": losses_valid["Total"],
-                        "epoch": self.epoch,
-                        **{f"train_{k}": v for k, v in losses_train.items()},
-                        **{f"valid_{k}": v for k, v in losses_valid.items()},
-                    },
-                    checkpoint_dir=best_ckpt_path or periodic_ckpt_path,
-                )
-
                 # Save epoch stats to JSON
                 # TODO: remove this block
                 history_path = Path(self.config.outdir) / "history"
@@ -633,6 +618,18 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 }
                 with open(f"{history_path}/epoch_{self.epoch}.json", "w") as f:
                     json.dump(stats, f)
+
+            # Ray report
+            self.ray_report(
+                metrics={
+                    "loss": losses_train["Total"],
+                    "val_loss": losses_valid["Total"],
+                    "epoch": self.epoch,
+                    **{f"train_{k}": v for k, v in losses_train.items()},
+                    **{f"valid_{k}": v for k, v in losses_valid.items()},
+                },
+                checkpoint_dir=best_ckpt_path or periodic_ckpt_path,
+            )
 
             # Test epoch
             if self.test_every and self.epoch % self.test_every == 0:
@@ -690,11 +687,14 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             tot_epoch_loss = {}
             for loss_name in epoch_loss:
                 tot_epoch_loss[loss_name] = (
-                    (torch.sum(torch.stack(tot_losses[loss_name])) / tot_steps)
-                    .cpu()
-                    .item()
-                )
+                    torch.sum(torch.stack(tot_losses[loss_name])) / tot_steps
+                ).item()
             return tot_epoch_loss
+
+        # Otherwise, report epoch_loss on workers with rank != 0
+        for loss_name in epoch_loss:
+            epoch_loss[loss_name] = epoch_loss[loss_name].item()
+        return epoch_loss
 
     def train_step(self, batch: Batch, batch_idx: int):
         """Run one optimization step.
@@ -863,6 +863,11 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                     .item()
                 )
             return tot_epoch_loss
+
+        # Otherwise, report epoch_loss on workers with rank != 0
+        for loss_name in epoch_loss:
+            epoch_loss[loss_name] = epoch_loss[loss_name].item()
+        return epoch_loss
 
     def validation_plots(self, batch, ypred_raw):
         X = batch.X[batch.mask].cpu()

@@ -275,7 +275,8 @@ if [ "${DIST_MODE}" == "ddp" ] ; then
     --ntrain 500 \
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy ddp \
-    --num-epochs 2"
+    --num-epochs 2 \
+    --itwinai-trainerv 2"
 
 
 decho
@@ -301,7 +302,8 @@ decho -e "\nLaunching Ray tests"
     --ntrain 500 \
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy ddp \
-    --num-epochs 2"
+    --num-epochs 2 \
+    --itwinai-trainerv 2"
 
 elif [ "${DIST_MODE}" == "deepspeed" ] ; then
 
@@ -321,7 +323,8 @@ elif [ "${DIST_MODE}" == "deepspeed" ] ; then
     --ntrain 500 \
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy deepspeed \
-    --num-epochs 2"
+    --num-epochs 2 \
+    --itwinai-trainerv 2"
 
 decho
 decho "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+="
@@ -344,7 +347,8 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --ntrain 500 \
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy deepspeed \
-    --num-epochs 2"
+    --num-epochs 2 \
+    --itwinai-trainerv 2"
 
   # decho -e "\nLaunching DeepSpeed strategy with mpirun"
   # mpirun_launcher "python -m ${COMMAND}"
@@ -373,7 +377,8 @@ elif [ "${DIST_MODE}" == "horovod" ] ; then
     --ntrain 500 \
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy horovod \
-    --num-epochs 2"
+    --num-epochs 2 \
+    --itwinai-trainerv 2"
 
 decho
 decho "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+="
@@ -396,7 +401,8 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --ntrain 500 \
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy horovod \
-    --num-epochs 2"
+    --num-epochs 2 \
+    --itwinai-trainerv 2"
 
 
 else

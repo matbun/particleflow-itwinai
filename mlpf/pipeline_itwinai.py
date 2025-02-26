@@ -22,6 +22,7 @@ from mlpf.model.PFDataset import SHARING_STRATEGY
 from utils import create_experiment_dir
 
 from itwinai.pipeline import Pipeline
+from itwinai.loggers import MLFlowLogger
 from model.trainer_itwinai import MLPFTrainer
 from model.trainer_itwinai2 import MLPFTrainer2
 
@@ -244,6 +245,24 @@ def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
                     epochs=config["num_epochs"],
                     strategy=args.itwinai_strategy,
                     checkpoints_location=Path(outdir) / "checkpoints",
+                    # logger=MLFlowLogger(log_freq=100),
+                )
+            ]
+        )
+    if args.itwinai_trainerv == 3:
+        config["outdir"] = outdir
+        config["storage_path"] = Path(
+            args.experiments_dir if args.experiments_dir else "experiments"
+        ).resolve()
+        config["ray_cpus"] = args.ray_cpus
+        return Pipeline(
+            steps=[
+                MLPFTrainer2(
+                    config=config,
+                    epochs=config["num_epochs"],
+                    strategy=args.itwinai_strategy,
+                    checkpoints_location=Path(outdir) / "checkpoints",
+                    logger=MLFlowLogger(log_freq=100),
                 )
             ]
         )
