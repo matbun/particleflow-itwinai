@@ -1,5 +1,12 @@
 """itwinai integration of MLPF"""
 
+import glob
+import json
+import logging
+import os
+import time
+from collections import defaultdict
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -9,68 +16,54 @@ from typing import (
     Union,
 )
 
-# disable GUI
 import matplotlib
-
-import json
-import sklearn
-import sklearn.metrics
-import pandas as pd
-import logging
 import matplotlib.pyplot as plt
-import time
-from pathlib import Path
-from collections import defaultdict
+import numpy as np
+import pandas as pd
 import ray.train
 import ray.train.torch
 import ray.tune
+import sklearn
+import sklearn.metrics
 import torch
-import os
-import glob
-import numpy as np
 import torch.nn as nn
-
-from mlpf.model.mlpf import set_save_attention
+from itwinai.loggers import Logger
+from itwinai.torch.config import TrainingConfiguration
+from itwinai.torch.monitoring.monitoring import measure_gpu_utilization
+from itwinai.torch.profiling.profiler import profile_torch_trainer
+from itwinai.torch.trainer import TorchTrainer as ItwinaiTorchTrainer
+from itwinai.torch.type import Batch, Metric
 from ray.train import DataConfig, RunConfig, ScalingConfig
 from ray.train.torch import TorchConfig
 from ray.tune import TuneConfig
 from torch.utils.data import DistributedSampler
 from tqdm import tqdm
 
-from itwinai.torch.config import TrainingConfiguration
-from itwinai.torch.type import Batch, Metric
-from itwinai.loggers import Logger
-
-
-from mlpf.model.mlpf import MLPF
+from mlpf.model.losses import mlpf_loss
+from mlpf.model.mlpf import MLPF, set_save_attention
 from mlpf.model.PFDataset import (
     Collater,
+    InterleavedIterator,
     PFDataset,
     set_worker_sharing_strategy,
-    InterleavedIterator,
 )
-from mlpf.model.losses import mlpf_loss
 from mlpf.model.utils import (
+    CLASS_LABELS,
+    ELEM_TYPES_NONZERO,
+    X_FEATURES,
+    count_parameters,
+    get_lr_schedule,
     unpack_predictions,
     unpack_target,
-    # get_model_state_dict,
-    # load_checkpoint,
-    # save_checkpoint,
-    CLASS_LABELS,
-    X_FEATURES,
-    ELEM_TYPES_NONZERO,
-    # save_HPs,
-    get_lr_schedule,
-    count_parameters,
 )
 
-
-from itwinai.torch.trainer import TorchTrainer as ItwinaiTorchTrainer
 # from itwinai.components import DataGetter as ItwinaiDataGetter
 
 
 if TYPE_CHECKING:
     from ray.train.horovod import HorovodConfig
+
+# Disable GUI
 matplotlib.use("agg")
 
 # class PFDatasetGetter(ItwinaiDataGetter):
@@ -78,8 +71,7 @@ matplotlib.use("agg")
 
 
 def get_histogram_figure(tensor: torch.Tensor, bins="auto") -> plt.Figure:
-    """
-    Generates a Matplotlib figure for a histogram of the given tensor.
+    """Generates a Matplotlib figure for a histogram of the given tensor.
 
     Args:
         tensor (torch.Tensor): The input tensor for which the histogram is created.
@@ -513,6 +505,8 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         self._set_epoch_dataloaders(self.epoch - 1)
 
+    @profile_torch_trainer
+    @measure_gpu_utilization
     def train(self) -> None:
         # TODO: define dynamically
         self.config.dtype = torch.float32
