@@ -45,7 +45,7 @@ ml CUDA/12.3
 ml GCCcore/11.3.0
 ml NCCL
 ml cuDNN/8.9.7.29-CUDA-12.3.0
-# ml UCX-CUDA/1.15.0-GCCcore-13.2.0-CUDA-12.3.0
+ml UCX-CUDA/1.15.0-GCCcore-13.2.0-CUDA-12.3.0 # this is needed by horovod!
 module unload OpenSSL
 # You should have CUDA 12.3 now
 
@@ -85,8 +85,16 @@ srun_launcher (){
     # Create mpirun logs folder
     mkdir -p "logs_srun/$SLURM_JOB_ID"
 
+    # https://doc.vega.izum.si/mpi/#multi-node-jobs
+    export UCX_TLS=self,sm,rc,ud
+    export OMPI_MCA_PML="ucx"
+    export OMPI_MCA_osc="ucx"
+    
+    # This tells UCX to enable fork safety when using RDMA (InfiniBand)
+    export RDMAV_FORK_SAFE=1
+
     # Launch command
-    srun --cpu-bind=none --ntasks-per-node=$SLURM_GPUS_PER_NODE \
+    srun --mpi=pmix_v3 --cpu-bind=none --ntasks-per-node=$SLURM_GPUS_PER_NODE \
         --cpus-per-task=$(($SLURM_CPUS_PER_TASK / $SLURM_GPUS_PER_NODE)) \
         --ntasks=$(($SLURM_GPUS_PER_NODE * $SLURM_NNODES)) \
         /bin/bash -c \
