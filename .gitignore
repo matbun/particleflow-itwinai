@@ -44,6 +44,8 @@ mllogs*
 *.err
 *.out
 
+*.tar.gz
+
 # Below -- gitignore temaplate for python projects: https://github.com/github/gitignore/blob/main/Python.gitignore
 
 # Byte-compiled / optimized / DLL files

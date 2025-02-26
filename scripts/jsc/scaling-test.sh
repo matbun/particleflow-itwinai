@@ -10,7 +10,7 @@ SCRIPT="scripts/jsc/slurm.jsc.sh"
 BASELINE_SCRIPT="scripts/jsc/training_ray.sh"
 
 # Variables for SLURM script
-export EXPERIMENTS_LOCATION=EXPERIMENTS
+export EXPERIMENTS_LOCATION=$EXPERIMENTS
 export BATCH_SIZE=32 #90
 export N_TRAIN=500 #700000
 

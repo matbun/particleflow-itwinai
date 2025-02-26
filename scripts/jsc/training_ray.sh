@@ -12,14 +12,15 @@
 #SBATCH --time=00:20:00
 
 # Resources allocation
-#SBATCH --partition=develbooster
+#SBATCH --partition=booster
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=2
+#SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=16
 #SBATCH --ntasks-per-node=1
 # SBATCH --mem-per-gpu=10G
 # SBATCH --exclusive
-#SBATCH --gres=gpu:1
+
 
 echo "DEBUG: SLURM_SUBMIT_DIR: $SLURM_SUBMIT_DIR"
 echo "DEBUG: SLURM_JOB_ID: $SLURM_JOB_ID"
