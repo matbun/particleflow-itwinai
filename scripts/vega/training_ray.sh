@@ -13,9 +13,9 @@
 
 # Resources allocation
 #SBATCH --partition=gpu
-#SBATCH --nodes=2
-#SBATCH --gpus-per-node=4
-#SBATCH --gres=gpu:4
+#SBATCH --nodes=1
+#SBATCH --gpus-per-node=2
+#SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=64
 #SBATCH --ntasks-per-node=1
 # SBATCH --mem-per-gpu=10G

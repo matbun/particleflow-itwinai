@@ -13,7 +13,7 @@
 
 # Resources allocation
 #SBATCH --partition=gpu
-#SBATCH --nodes=2
+#SBATCH --nodes=1
 #SBATCH --gpus-per-node=2
 #SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=64
@@ -49,7 +49,6 @@ ml cuDNN/8.9.7.29-CUDA-12.3.0
 module unload OpenSSL
 # You should have CUDA 12.3 now
 
-source ~/.bashrc
 source $PYTHON_VENV/bin/activate
 
 # Make mlpf visible
@@ -202,7 +201,7 @@ if [ "${DIST_MODE}" == "ddp" ] ; then
     --train \
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
-    --data-dir /p/scratch/intertwin/datasets/clic/ \
+    --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
     --prefix itwinai_ddp_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
@@ -229,7 +228,7 @@ decho -e "\nLaunching Ray tests"
     --train \
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
-    --data-dir /p/scratch/intertwin/datasets/clic/ \
+    --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
     --prefix itwinai_ddp_ray_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
@@ -250,7 +249,7 @@ elif [ "${DIST_MODE}" == "deepspeed" ] ; then
     --train \
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
-    --data-dir /p/scratch/intertwin/datasets/clic/ \
+    --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
     --prefix itwinai_deepspeed_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
@@ -274,7 +273,7 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --train \
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
-    --data-dir /p/scratch/intertwin/datasets/clic/ \
+    --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
     --prefix itwinai_deepspeed_ray_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
@@ -304,7 +303,7 @@ elif [ "${DIST_MODE}" == "horovod" ] ; then
     --train \
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
-    --data-dir /p/scratch/intertwin/datasets/clic/ \
+    --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
     --prefix itwinai_horovod_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
@@ -328,7 +327,7 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --train \
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
-    --data-dir /p/scratch/intertwin/datasets/clic/ \
+    --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
     --prefix itwinai_horovod_ray_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \

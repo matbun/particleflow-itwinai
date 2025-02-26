@@ -11,8 +11,10 @@ BASELINE_SCRIPT="scripts/vega/training_ray.sh"
 
 # Variables for SLURM script
 export EXPERIMENTS_LOCATION=EXPERIMENTS
-export BATCH_SIZE=32
-export N_TRAIN=500
+export BATCH_SIZE=32 #90
+export N_TRAIN=500 #700000
+
+# NOTE: remember to check how many GPUs per node were requested in the slurm scripts!
 
 echo "You are going to delete '$LOGS_SLURM' and '$EXPERIMENTS'."
 read -p "Do you really want to delete the existing experiments and repeat the scaling test? [y/N] " choice
