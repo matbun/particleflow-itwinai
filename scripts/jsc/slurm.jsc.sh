@@ -24,8 +24,8 @@
 
 # Resources allocation
 #SBATCH --partition=develbooster
-#SBATCH --nodes=2
-#SBATCH --gpus-per-node=1
+#SBATCH --nodes=1
+#SBATCH --gpus-per-node=2
 #SBATCH --cpus-per-task=16
 #SBATCH --ntasks-per-node=1
 # SBATCH --mem-per-gpu=10G
@@ -174,24 +174,19 @@ if [ -z "$RUN_NAME" ]; then
   >&2 echo "WARNING: env variable RUN_NAME is not set. It's a way to identify some specific run of an experiment."
   RUN_NAME=$DIST_MODE
 fi
-# if [ -z "$COMMAND" ]; then 
-#   >&2 echo "ERROR: env variable COMMAND is not set. It's the python command to execute."
-#   exit 1
-# fi
-# if [ -z "$CONTAINER_PATH" ]; then 
-#   >&2 echo "WARNING: env variable CONTAINER_PATH is not set. It's the path to a singularity container."
-#   exit 1
-# fi
+if [ -z "$EXPERIMENTS_LOCATION" ]; then 
+  EXPERIMENTS_LOCATION="experiments"
+fi
+if [ -z "$N_TRAIN" ]; then 
+  N_TRAIN=500
+fi
+if [ -z "$N_VALID" ]; then 
+  N_VALID=500
+fi
+if [ -z "$BATCH_SIZE" ]; then 
+  BATCH_SIZE=32
+fi
 
-# # OpenMPI version
-# HOST_OMPI_V="$(ompi_info --parsable | grep ompi:version:full: |  cut -d':' -f4 | cut -d'.' -f1,2)"
-# CONTAINER_OMPI_V="$(singularity exec $CONTAINER_PATH ompi_info --parsable | grep ompi:version:full: |  cut -d':' -f4 | cut -d'.' -f1,2)"
-
-# if [ "$HOST_OMPI_V" != "$CONTAINER_OMPI_V" ]; then
-#   >&2 echo "ERROR: Host OpenMPI minor version ($HOST_OMPI_V) does not match with container's OpenMPI minor version ($CONTAINER_OMPI_V). This may cause problems." 
-#   # exit 1
-# fi
-# echo -e "\nHost and container's OpenMPI minor versions match: ($HOST_OMPI_V) - ($CONTAINER_OMPI_V)\n" 
 
 # Get GPUs info per node
 srun --cpu-bind=none --ntasks-per-node=1 bash -c 'echo -e "NODE hostname: $(hostname)\n$(nvidia-smi)\n\n"'
@@ -212,15 +207,15 @@ if [ "${DIST_MODE}" == "ddp" ] ; then
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
     --data-dir /p/scratch/intertwin/datasets/clic/ \
-    --prefix scaling_bl_ray_N_${SLURM_NNODES}_ \
+    --prefix itwinai_ddp_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
-    --gpu-batch-multiplier 32 \
+    --gpu-batch-multiplier $BATCH_SIZE \
     --num-workers $((SLURM_CPUS_PER_TASK/SLURM_GPUS_PER_NODE)) \
     --prefetch-factor 8 \
-    --nvalid 500 \
-    --ntrain 500 \
-    --experiments-dir $PWD/experiments_scaling \
+    --nvalid $N_VALID \
+    --ntrain $N_TRAIN \
+    --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy ddp \
     --num-epochs 2 \
     --itwinai-trainerv 3"
@@ -239,15 +234,15 @@ decho -e "\nLaunching Ray tests"
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
     --data-dir /p/scratch/intertwin/datasets/clic/ \
-    --prefix scaling_bl_ray_N_${SLURM_NNODES}_ \
+    --prefix itwinai_ddp_ray_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
-    --gpu-batch-multiplier 32 \
+    --gpu-batch-multiplier $BATCH_SIZE \
     --num-workers $((SLURM_CPUS_PER_TASK/SLURM_GPUS_PER_NODE)) \
     --prefetch-factor 8 \
-    --nvalid 500 \
-    --ntrain 500 \
-    --experiments-dir $PWD/experiments_scaling \
+    --nvalid $N_VALID \
+    --ntrain $N_TRAIN \
+    --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy ddp \
     --num-epochs 2 \
     --itwinai-trainerv 3"
@@ -260,15 +255,15 @@ elif [ "${DIST_MODE}" == "deepspeed" ] ; then
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
     --data-dir /p/scratch/intertwin/datasets/clic/ \
-    --prefix scaling_bl_ray_N_${SLURM_NNODES}_ \
+    --prefix itwinai_deepspeed_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
-    --gpu-batch-multiplier 32 \
+    --gpu-batch-multiplier $BATCH_SIZE \
     --num-workers $((SLURM_CPUS_PER_TASK/SLURM_GPUS_PER_NODE)) \
     --prefetch-factor 8 \
-    --nvalid 500 \
-    --ntrain 500 \
-    --experiments-dir $PWD/experiments_scaling \
+    --nvalid $N_VALID \
+    --ntrain $N_TRAIN \
+    --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
     --itwinai-trainerv 3"
@@ -284,15 +279,15 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
     --data-dir /p/scratch/intertwin/datasets/clic/ \
-    --prefix scaling_bl_ray_N_${SLURM_NNODES}_ \
+    --prefix itwinai_deepspeed_ray_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
-    --gpu-batch-multiplier 32 \
+    --gpu-batch-multiplier $BATCH_SIZE \
     --num-workers $((SLURM_CPUS_PER_TASK/SLURM_GPUS_PER_NODE)) \
     --prefetch-factor 8 \
-    --nvalid 500 \
-    --ntrain 500 \
-    --experiments-dir $PWD/experiments_scaling \
+    --nvalid $N_VALID \
+    --ntrain $N_TRAIN \
+    --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
     --itwinai-trainerv 3"
@@ -314,15 +309,15 @@ elif [ "${DIST_MODE}" == "horovod" ] ; then
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
     --data-dir /p/scratch/intertwin/datasets/clic/ \
-    --prefix scaling_bl_ray_N_${SLURM_NNODES}_ \
+    --prefix itwinai_horovod_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
-    --gpu-batch-multiplier 32 \
+    --gpu-batch-multiplier $BATCH_SIZE \
     --num-workers $((SLURM_CPUS_PER_TASK/SLURM_GPUS_PER_NODE)) \
     --prefetch-factor 8 \
-    --nvalid 500 \
-    --ntrain 500 \
-    --experiments-dir $PWD/experiments_scaling \
+    --nvalid $N_VALID \
+    --ntrain $N_TRAIN \
+    --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy horovod \
     --num-epochs 2 \
     --itwinai-trainerv 3"
@@ -338,15 +333,15 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
     --data-dir /p/scratch/intertwin/datasets/clic/ \
-    --prefix scaling_bl_ray_N_${SLURM_NNODES}_ \
+    --prefix itwinai_horovod_ray_N_${SLURM_NNODES}_ \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
-    --gpu-batch-multiplier 32 \
+    --gpu-batch-multiplier $BATCH_SIZE \
     --num-workers $((SLURM_CPUS_PER_TASK/SLURM_GPUS_PER_NODE)) \
     --prefetch-factor 8 \
-    --nvalid 500 \
-    --ntrain 500 \
-    --experiments-dir $PWD/experiments_scaling \
+    --nvalid $N_VALID \
+    --ntrain $N_TRAIN \
+    --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy horovod \
     --num-epochs 2 \
     --itwinai-trainerv 3"

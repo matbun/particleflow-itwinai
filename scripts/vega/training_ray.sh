@@ -115,6 +115,9 @@ echo All Ray workers started.
 echo "Starting training"
 # when training with Ray Train, --gpus should be equal to toal number of GPUs across the Ray Cluster
 
+# Make mlpf visible
+export PYTHONPATH="$PWD:$PYTHONPATH"
+
 if [ -z "$EXPERIMENTS_LOCATION" ]; then 
   EXPERIMENTS_LOCATION="experiments"
 fi
@@ -138,6 +141,7 @@ fi
 # --nvalid $((500*SLURM_NNODES)) \
 # --gpu-batch-multiplier 90 \
 
+# Run the MLPF model baseline
 uv run python -u $PWD/mlpf/pipeline.py \
     --train \
     --ray-train \

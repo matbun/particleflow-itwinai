@@ -13,8 +13,8 @@
 
 # Resources allocation
 #SBATCH --partition=develbooster
-#SBATCH --nodes=2
-#SBATCH --gpus-per-node=1
+#SBATCH --nodes=1
+#SBATCH --gpus-per-node=2
 #SBATCH --cpus-per-task=16
 #SBATCH --ntasks-per-node=1
 # SBATCH --mem-per-gpu=10G
@@ -104,6 +104,19 @@ echo "Starting training"
 # Make mlpf visible
 export PYTHONPATH="$PWD:$PYTHONPATH"
 
+if [ -z "$EXPERIMENTS_LOCATION" ]; then 
+  EXPERIMENTS_LOCATION="experiments"
+fi
+if [ -z "$N_TRAIN" ]; then 
+  N_TRAIN=500
+fi
+if [ -z "$N_VALID" ]; then 
+  N_VALID=500
+fi
+if [ -z "$BATCH_SIZE" ]; then 
+  BATCH_SIZE=32
+fi
+
 
 # when training with Ray Train, --gpus should be equal to toal number of GPUs across the Ray Cluster
 
@@ -117,18 +130,19 @@ export PYTHONPATH="$PWD:$PYTHONPATH"
 # --nvalid $((500*SLURM_NNODES)) \
 # --gpu-batch-multiplier 90 \
 
-uv run python -u $PWD/mlpf/pipeline_itwinai.py \
+# Run the MLPF model baseline
+uv run python -u $PWD/mlpf/pipeline.py \
     --train \
     --ray-train \
     --config parameters/pytorch/pyg-clic-itwinai.yaml \
     --data-dir /p/scratch/intertwin/datasets/clic/ \
-    --prefix "scaling_bl_ray_N_${SLURM_NNODES}_" \
+    --prefix "baseline_ddp_ray_N_${SLURM_NNODES}_" \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
-    --gpu-batch-multiplier 32 \
+    --gpu-batch-multiplier $BATCH_SIZE \
     --num-workers $((SLURM_CPUS_PER_TASK/SLURM_GPUS_PER_NODE)) \
     --prefetch-factor 8 \
-    --nvalid 500 \
-    --ntrain 500 \
-    --experiments-dir $PWD/experiments_scaling \
+    --nvalid $N_VALID \
+    --ntrain $N_TRAIN \
+    --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --num-epochs 2

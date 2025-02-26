@@ -16,6 +16,9 @@ from typing import Union, List
 # comet needs to be imported before torch
 # from comet_ml import OfflineExperiment, Experiment  # noqa: F401, isort:skip
 
+from itwinai.loggers import EpochTimeTracker
+from timeit import default_timer as timer
+
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -405,6 +408,20 @@ def train_all_epochs(
         tensorboard_writer_train = None
         tensorboard_writer_valid = None
 
+    # Epoch time tracker itwinai
+    epoch_time_tracker: EpochTimeTracker | None = None
+    if (rank == 0) or (rank == "cpu"):
+        strategy_name = "baseline-ray-ddp"
+        num_nodes = int(os.environ.get("SLURM_NNODES", 1))
+        epoch_time_output_dir = Path("scalability-metrics/epoch-time")
+        epoch_time_file_name = f"epochtime_{strategy_name}_{num_nodes}N.csv"
+        epoch_time_output_path = epoch_time_output_dir / epoch_time_file_name
+        epoch_time_tracker = EpochTimeTracker(
+            strategy_name=strategy_name,
+            save_path=epoch_time_output_path,
+            num_nodes=num_nodes,
+        )
+
     device_type = "cuda" if isinstance(rank, int) else "cpu"
     t0_initial = time.time()
 
@@ -416,6 +433,8 @@ def train_all_epochs(
 
     for epoch in range(start_epoch, num_epochs + 1):
         epoch_start_time = time.time()
+
+        lt = timer()
 
         # Training epoch
         losses_train = train_epoch(
@@ -435,6 +454,10 @@ def train_all_epochs(
             scaler=scaler,
         )
         train_time = time.time() - epoch_start_time
+
+        if (rank == 0) or (rank == "cpu"):
+            assert epoch_time_tracker is not None
+            epoch_time_tracker.add_epoch_time(epoch - 1, timer() - lt)
 
         # Validation epoch
         losses_valid = eval_epoch(
@@ -610,6 +633,10 @@ def train_all_epochs(
     _logger.info(
         f"Training completed. Total time on device {rank}: {(time.time() - t0_initial) / 60:.3f}min"
     )
+
+    if (rank == 0) or (rank == "cpu"):
+        assert epoch_time_tracker is not None
+        epoch_time_tracker.save()
 
     # Clean up
     if (rank == 0) or (rank == "cpu"):

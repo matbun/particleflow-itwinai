@@ -15,6 +15,7 @@ from typing import (
     Optional,
     Union,
 )
+from timeit import default_timer as timer
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -27,7 +28,7 @@ import sklearn
 import sklearn.metrics
 import torch
 import torch.nn as nn
-from itwinai.loggers import Logger
+from itwinai.loggers import EpochTimeTracker, Logger
 from itwinai.torch.config import TrainingConfiguration
 from itwinai.torch.monitoring.monitoring import measure_gpu_utilization
 from itwinai.torch.profiling.profiler import profile_torch_trainer
@@ -519,6 +520,18 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         # t0_initial = time.time()
 
+        epoch_time_tracker: EpochTimeTracker | None = None
+        if self.strategy.is_main_worker:
+            num_nodes = int(os.environ.get("SLURM_NNODES", 1))
+            epoch_time_output_dir = Path("scalability-metrics/epoch-time")
+            epoch_time_file_name = f"epochtime_{self.strategy.name}_{num_nodes}N.csv"
+            epoch_time_output_path = epoch_time_output_dir / epoch_time_file_name
+            epoch_time_tracker = EpochTimeTracker(
+                strategy_name=self.strategy.name,
+                save_path=epoch_time_output_path,
+                num_nodes=num_nodes,
+            )
+
         # Early stopping setup
         stale_epochs = torch.tensor(0, device=self.device)
 
@@ -529,9 +542,15 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
             self.set_epoch()
 
+            lt = timer()
+
             # Training epoch
             losses_train = self.train_epoch()
             train_time = time.time() - epoch_start_time
+
+            if self.strategy.is_main_worker:
+                assert epoch_time_tracker is not None
+                epoch_time_tracker.add_epoch_time(self.epoch - 1, timer() - lt)
 
             # Validation epoch
             losses_valid = self.validation_epoch()
@@ -633,6 +652,10 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             if stale_epochs > self.config.patience:
                 logging.info(f"Breaking due to stale epochs: {stale_epochs}")
                 break
+
+        if self.strategy.is_main_worker:
+            assert epoch_time_tracker is not None
+            epoch_time_tracker.save()
 
     def train_epoch(self):
         """Run one training epoch

@@ -38,7 +38,7 @@ logs*
 *.csv
 
 # itwinai
-mllogs
+mllogs*
 
 # SLURM
 *.err
