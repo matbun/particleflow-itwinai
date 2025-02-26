@@ -217,6 +217,7 @@ def get_outdir(resume_training, load):
 def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
     """Create an itwinai pipeline for MLPF"""
     if args.itwinai_trainerv == 1:
+        # First version: shallow integration
         config["outdir"] = outdir
         config["storage_path"] = Path(
             args.experiments_dir if args.experiments_dir else "experiments"
@@ -233,6 +234,7 @@ def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
             ]
         )
     if args.itwinai_trainerv == 2:
+        # First full integration
         config["outdir"] = outdir
         config["storage_path"] = Path(
             args.experiments_dir if args.experiments_dir else "experiments"
@@ -250,28 +252,7 @@ def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
             ]
         )
     if args.itwinai_trainerv == 3:
-        config["outdir"] = outdir
-        config["storage_path"] = Path(
-            args.experiments_dir if args.experiments_dir else "experiments"
-        ).resolve()
-        config["ray_cpus"] = args.ray_cpus
-        return Pipeline(
-            steps=[
-                MLPFTrainer2(
-                    config=config,
-                    epochs=config["num_epochs"],
-                    strategy=args.itwinai_strategy,
-                    checkpoints_location=Path(outdir) / "checkpoints",
-                    logger=LoggersCollection(
-                        [
-                            MLFlowLogger(log_freq=100),
-                            TensorBoardLogger(log_freq=100),
-                        ]
-                    ),
-                )
-            ]
-        )
-    if args.itwinai_trainerv == 4:
+        # Full integration and loggers
         config["outdir"] = outdir
         config["storage_path"] = Path(
             args.experiments_dir if args.experiments_dir else "experiments"

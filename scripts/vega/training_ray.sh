@@ -45,7 +45,7 @@ ml CUDA/12.3
 ml GCCcore/11.3.0
 ml NCCL
 ml cuDNN/8.9.7.29-CUDA-12.3.0
-ml UCX-CUDA/1.15.0-GCCcore-13.2.0-CUDA-12.3.0
+# ml UCX-CUDA/1.15.0-GCCcore-13.2.0-CUDA-12.3.0
 module unload OpenSSL
 # You should have CUDA 12.3 now
 
@@ -65,7 +65,7 @@ export RAY_CHDIR_TO_TRIAL_DIR=0
 export RAY_DEDUP_LOGS=0
 export RAY_USAGE_STATS_DISABLE=1
 
-# Disable colored output
+# Disable colors in output
 export NO_COLOR=1
 export RAY_COLOR_PREFIX=0
 
@@ -115,6 +115,19 @@ echo All Ray workers started.
 echo "Starting training"
 # when training with Ray Train, --gpus should be equal to toal number of GPUs across the Ray Cluster
 
+if [ -z "$EXPERIMENTS_LOCATION" ]; then 
+  EXPERIMENTS_LOCATION="experiments"
+fi
+if [ -z "$N_TRAIN" ]; then 
+  N_TRAIN=500
+fi
+if [ -z "$N_VALID" ]; then 
+  N_VALID=500
+fi
+if [ -z "$BATCH_SIZE" ]; then 
+  BATCH_SIZE=32
+fi
+
 # $PYTHON_VENV/bin/python -u $PWD/mlpf/pyg_pipeline.py \
 
     # --ntrain 500 \
@@ -128,16 +141,15 @@ echo "Starting training"
 uv run python -u $PWD/mlpf/pipeline.py \
     --train \
     --ray-train \
-    --config parameters/pytorch/pyg-clic.yaml \
+    --config parameters/pytorch/pyg-clic-itwinai.yaml \
     --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
-    --prefix "scaling_bl_ray_N_${SLURM_NNODES}_" \
+    --prefix "baseline_ddp_ray_N_${SLURM_NNODES}_" \
     --ray-cpus $((SLURM_CPUS_PER_TASK*SLURM_NNODES)) \
     --gpus $((SLURM_GPUS_PER_NODE*SLURM_NNODES)) \
-    --gpu-batch-multiplier 32 \
+    --gpu-batch-multiplier $BATCH_SIZE \
     --num-workers $((SLURM_CPUS_PER_TASK/SLURM_GPUS_PER_NODE)) \
     --prefetch-factor 8 \
-    --nvalid 500 \
-    --ntrain 500 \
-    --experiments-dir $PWD/experiments_scaling \
-    --local \
+    --nvalid $N_VALID \
+    --ntrain $N_TRAIN \
+    --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --num-epochs 2

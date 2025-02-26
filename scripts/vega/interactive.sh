@@ -71,10 +71,10 @@ run(){
     uv run python -u $PWD/mlpf/pipeline.py \
         --train \
         --ray-train \
-        --config parameters/pytorch/pyg-clic.yaml \
+        --config parameters/pytorch/pyg-clic-itwinai.yaml \
         --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
-        --ntrain 500 \
-        --nvalid 500 \
+        --ntrain 50 \
+        --nvalid 50 \
         --prefix foo_prefix \
         --ray-cpus $RAY_CPUS \
         --gpus $RAY_GPUS \
@@ -82,30 +82,74 @@ run(){
         --num-workers 8 \
         --prefetch-factor 8 \
         --experiments-dir $PWD/experiments \
-        --local \
         --num-epochs 2
 }
+
+export ITWINAI_LOG_LEVEL=DEBUG
 
 run_itwinai(){
 
     RAY_CPUS=32
     RAY_GPUS=1
 
+    uv run ray stop
+
+    # Make mlpf visible
+    export PYTHONPATH="$PWD:$PYTHONPATH"
+
     uv run python -u \
         $PWD/mlpf/pipeline_itwinai.py \
         --train \
         --ray-train \
-        --config parameters/pytorch/pyg-clic-.yaml \
+        --config parameters/pytorch/pyg-clic-itwinai.yaml \
         --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
-        --ntrain 500 \
-        --nvalid 500 \
+        --ntrain 50 \
+        --nvalid 50 \
         --ray-cpus $RAY_CPUS \
         --gpus $RAY_GPUS \
         --prefix foo_prefix \
         --gpu-batch-multiplier 8 \
         --num-workers 8 \
         --prefetch-factor 8 \
-        --local \
         --experiments-dir $PWD/experiments \
-        --num-epochs 2
+        --num-epochs 2 \
+        --itwinai-trainerv 4
+}
+
+run_itwinai_ray(){
+
+    RAY_CPUS=32
+    RAY_GPUS=1
+    
+    uv run ray stop
+    uv run ray start \
+        --head \
+        --node-ip-address=localhost \
+        --port=7639 \
+        --num-cpus=$RAY_CPUS \
+        --num-gpus=$RAY_GPUS 
+        # --block &
+    echo "RAY STARTED"
+
+    # Make mlpf visible
+    export PYTHONPATH="$PWD:$PYTHONPATH"
+
+    # uv run python -Xfrozen_modules=off -m debugpy --listen 5678 --wait-for-client  \
+    uv run python -u \
+        $PWD/mlpf/pipeline_itwinai.py \
+        --train \
+        --ray-train \
+        --config parameters/pytorch/pyg-clic-itwinai.yaml \
+        --data-dir /ceph/hpc/data/d2024d11-083-users/data/tensorflow_datasets/clic \
+        --ntrain 50 \
+        --nvalid 50 \
+        --ray-cpus $RAY_CPUS \
+        --gpus $RAY_GPUS \
+        --prefix foo_prefix \
+        --gpu-batch-multiplier 8 \
+        --num-workers 8 \
+        --prefetch-factor 8 \
+        --experiments-dir $PWD/experiments \
+        --num-epochs 2 \
+        --itwinai-trainerv 4
 }

@@ -116,15 +116,15 @@ run_itwinai_ray(){
     RAY_CPUS=32
     RAY_GPUS=0
     
-    # uv run ray stop
-    # uv run ray start \
-    #     --head \
-    #     --node-ip-address=localhost \
-    #     --port=7639 \
-    #     --num-cpus=$RAY_CPUS \
-    #     --num-gpus=$RAY_GPUS 
-    #     # --block &
-    # echo "RAY STARTED"
+    uv run ray stop
+    uv run ray start \
+        --head \
+        --node-ip-address=localhost \
+        --port=7639 \
+        --num-cpus=$RAY_CPUS \
+        --num-gpus=$RAY_GPUS 
+        # --block &
+    echo "RAY STARTED"
 
     # Make mlpf visible
     export PYTHONPATH="$PWD:$PYTHONPATH"
