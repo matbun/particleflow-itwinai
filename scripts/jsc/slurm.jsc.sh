@@ -25,8 +25,8 @@
 # Resources allocation
 #SBATCH --partition=booster
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=2
-#SBATCH --gres=gpu:2
+#SBATCH --gpus-per-node=4
+#SBATCH --gres=gpu:4
 #SBATCH --cpus-per-task=16
 #SBATCH --ntasks-per-node=1
 # SBATCH --mem-per-gpu=10G
@@ -219,7 +219,7 @@ if [ "${DIST_MODE}" == "ddp" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy ddp \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --itwinai-trainerv 4"
 
 
 decho
@@ -246,7 +246,7 @@ decho -e "\nLaunching Ray tests"
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy ddp \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --itwinai-trainerv 4"
 
 elif [ "${DIST_MODE}" == "deepspeed" ] ; then
 
@@ -267,7 +267,7 @@ elif [ "${DIST_MODE}" == "deepspeed" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --itwinai-trainerv 4"
 
 decho
 decho "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+="
@@ -291,7 +291,7 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --itwinai-trainerv 4"
 
   # decho -e "\nLaunching DeepSpeed strategy with mpirun"
   # mpirun_launcher "python -m ${COMMAND}"
@@ -321,7 +321,7 @@ elif [ "${DIST_MODE}" == "horovod" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy horovod \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --itwinai-trainerv 4"
 
 decho
 decho "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+="
@@ -345,7 +345,7 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy horovod \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --itwinai-trainerv 4"
 
 
 else

@@ -274,6 +274,24 @@ def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
                 )
             ]
         )
+    if args.itwinai_trainerv == 4:
+        # Full integrationa nd checkpoint/loggers disabled
+        config["outdir"] = outdir
+        config["storage_path"] = Path(
+            args.experiments_dir if args.experiments_dir else "experiments"
+        ).resolve()
+        config["ray_cpus"] = args.ray_cpus
+        return Pipeline(
+            steps=[
+                MLPFTrainer2(
+                    config=config,
+                    epochs=config["num_epochs"],
+                    strategy=args.itwinai_strategy,
+                    checkpoints_location=Path(outdir) / "checkpoints",
+                    checkpoint_every=None,
+                )
+            ]
+        )
 
     raise ValueError("unrecognized itwinai-trainerv")
 

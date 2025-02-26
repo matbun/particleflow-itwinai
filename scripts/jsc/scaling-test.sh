@@ -3,16 +3,16 @@
 LOGS_SLURM="logs_slurm"
 EXPERIMENTS="experiments_scaling"
 REPLICAS=1
-NODES_LIST="1" #"1 2 4 8 16"
-T="00:10:00"
+NODES_LIST="1 2 4" #"1 2 4 8 16"
+T="02:00:00" #"00:10:00"
 # RUN_NAME="mlpf-pyg-ray-bl"
 SCRIPT="scripts/jsc/slurm.jsc.sh"
 BASELINE_SCRIPT="scripts/jsc/training_ray.sh"
 
 # Variables for SLURM script
 export EXPERIMENTS_LOCATION=$EXPERIMENTS
-export BATCH_SIZE=32 #90
-export N_TRAIN=500 #700000
+export BATCH_SIZE=90 #32
+export N_TRAIN=70000 #500 #700000
 
 # NOTE: remember to check how many GPUs per node were requested in the slurm scripts!
 
@@ -20,7 +20,7 @@ echo "You are going to delete '$LOGS_SLURM' and '$EXPERIMENTS'."
 read -p "Do you really want to delete the existing experiments and repeat the scaling test? [y/N] " choice
 
 if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
-  rm -rf $LOGS_SLURM
+  rm -rf $LOGS_SLURM logs_torchrun mllogs scalability-metrics plots
   mkdir $LOGS_SLURM
   rm -rf $EXPERIMENTS
 else

@@ -506,7 +506,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         self._set_epoch_dataloaders(self.epoch - 1)
 
-    @profile_torch_trainer
+    # @profile_torch_trainer
     @measure_gpu_utilization
     def train(self) -> None:
         # TODO: define dynamically
@@ -557,80 +557,80 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             valid_time = time.time() - train_time - epoch_start_time
             total_time = time.time() - epoch_start_time
 
-            # Metrics logging
-            for loss_name in losses_train.keys():
-                self.log(
-                    item=losses_train[loss_name],
-                    identifier="epoch_train_loss_" + loss_name,
-                    kind="metric",
-                    step=self.epoch,
-                )
-            for loss_name in losses_valid.keys():
-                self.log(
-                    item=losses_train[loss_name],
-                    identifier="epoch_valid_loss_" + loss_name,
-                    kind="metric",
-                    step=self.epoch,
-                )
-            self.log(
-                item=self.lr_scheduler.get_last_lr()[0],
-                identifier="learning_rate",
-                kind="metric",
-                step=self.epoch,
-            )
-            # Epoch times
-            self.log(
-                item=train_time,
-                identifier="epoch_train_time",
-                kind="metric",
-                step=self.epoch,
-            )
-            self.log(
-                item=valid_time,
-                identifier="epoch_valid_time",
-                kind="metric",
-                step=self.epoch,
-            )
-            self.log(
-                item=total_time,
-                identifier="epoch_total_time",
-                kind="metric",
-                step=self.epoch,
-            )
+            # # Metrics logging
+            # for loss_name in losses_train.keys():
+            #     self.log(
+            #         item=losses_train[loss_name],
+            #         identifier="epoch_train_loss_" + loss_name,
+            #         kind="metric",
+            #         step=self.epoch,
+            #     )
+            # for loss_name in losses_valid.keys():
+            #     self.log(
+            #         item=losses_train[loss_name],
+            #         identifier="epoch_valid_loss_" + loss_name,
+            #         kind="metric",
+            #         step=self.epoch,
+            #     )
+            # self.log(
+            #     item=self.lr_scheduler.get_last_lr()[0],
+            #     identifier="learning_rate",
+            #     kind="metric",
+            #     step=self.epoch,
+            # )
+            # # Epoch times
+            # self.log(
+            #     item=train_time,
+            #     identifier="epoch_train_time",
+            #     kind="metric",
+            #     step=self.epoch,
+            # )
+            # self.log(
+            #     item=valid_time,
+            #     identifier="epoch_valid_time",
+            #     kind="metric",
+            #     step=self.epoch,
+            # )
+            # self.log(
+            #     item=total_time,
+            #     identifier="epoch_total_time",
+            #     kind="metric",
+            #     step=self.epoch,
+            # )
 
-            # Checkpointing
-            best_ckpt_path = None
-            periodic_ckpt_path = None
-            if self.strategy.is_main_worker:
-                # Save best model if validation loss improved
-                if losses_valid["Total"] < self.best_validation_loss:
-                    self.best_validation_loss = losses_valid["Total"]
-                    stale_epochs = 0
-                    best_ckpt_path = self.save_checkpoint(
-                        name="best_model",
-                        best_validation_loss=self.best_validation_loss,
-                    )
-                else:
-                    stale_epochs += 1
+            # # Checkpointing
+            # best_ckpt_path = None
+            # periodic_ckpt_path = None
+            # if self.strategy.is_main_worker:
+            #     # Save best model if validation loss improved
+            #     if losses_valid["Total"] < self.best_validation_loss:
+            #         self.best_validation_loss = losses_valid["Total"]
+            #         stale_epochs = 0
+            #         best_ckpt_path = self.save_checkpoint(
+            #             name="best_model",
+            #             best_validation_loss=self.best_validation_loss,
+            #         )
+            #     else:
+            #         stale_epochs += 1
 
-                # Periodic checkpointing
-                periodic_ckpt_path = self.save_checkpoint(
-                    name=f"epoch_{self.epoch:02d}-{losses_valid['Total']:.6f}"
-                )
+            #     # Periodic checkpointing
+            #     periodic_ckpt_path = self.save_checkpoint(
+            #         name=f"epoch_{self.epoch:02d}-{losses_valid['Total']:.6f}"
+            #     )
 
-                # Save epoch stats to JSON
-                # TODO: remove this block
-                history_path = Path(self.config.outdir) / "history"
-                history_path.mkdir(parents=True, exist_ok=True)
-                stats = {
-                    "train": losses_train,
-                    "valid": losses_valid,
-                    "epoch_train_time": train_time,
-                    "epoch_valid_time": valid_time,
-                    "epoch_total_time": total_time,
-                }
-                with open(f"{history_path}/epoch_{self.epoch}.json", "w") as f:
-                    json.dump(stats, f)
+            # # Save epoch stats to JSON
+            # # TODO: remove this block
+            # history_path = Path(self.config.outdir) / "history"
+            # history_path.mkdir(parents=True, exist_ok=True)
+            # stats = {
+            #     "train": losses_train,
+            #     "valid": losses_valid,
+            #     "epoch_train_time": train_time,
+            #     "epoch_valid_time": valid_time,
+            #     "epoch_total_time": total_time,
+            # }
+            # with open(f"{history_path}/epoch_{self.epoch}.json", "w") as f:
+            #     json.dump(stats, f)
 
             # Ray report
             self.ray_report(
@@ -641,17 +641,17 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                     **{f"train_{k}": v for k, v in losses_train.items()},
                     **{f"valid_{k}": v for k, v in losses_valid.items()},
                 },
-                checkpoint_dir=best_ckpt_path or periodic_ckpt_path,
+                # checkpoint_dir=best_ckpt_path or periodic_ckpt_path,
             )
 
-            # Test epoch
-            if self.test_every and self.epoch % self.test_every == 0:
-                self.test_epoch()
+            # # Test epoch
+            # if self.test_every and self.epoch % self.test_every == 0:
+            #     self.test_epoch()
 
-            # Check early stopping
-            if stale_epochs > self.config.patience:
-                logging.info(f"Breaking due to stale epochs: {stale_epochs}")
-                break
+            # # Check early stopping
+            # if stale_epochs > self.config.patience:
+            #     logging.info(f"Breaking due to stale epochs: {stale_epochs}")
+            #     break
 
         if self.strategy.is_main_worker:
             assert epoch_time_tracker is not None
@@ -744,38 +744,38 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
         if self.lr_scheduler:
             self.lr_scheduler.step()
 
-        # Log step
-        # get the number of elements, excluding padded elements
-        num_elems = batch.X[batch.mask].shape[0]
+        # # Log step
+        # # get the number of elements, excluding padded elements
+        # num_elems = batch.X[batch.mask].shape[0]
 
-        self.log(
-            identifier="step/loss",
-            item=loss["Total"] / num_elems,
-            kind="metric",
-            step=self.train_glob_step,
-            batch_idx=batch_idx,
-        )
-        self.log(
-            identifier="step/num_elems",
-            item=num_elems,
-            kind="metric",
-            step=self.train_glob_step,
-            batch_idx=batch_idx,
-        )
-        self.log(
-            identifier="step/num_batch",
-            item=batch.X.shape[0],
-            kind="metric",
-            step=self.train_glob_step,
-            batch_idx=batch_idx,
-        )
-        self.log(
-            identifier="step/learning_rate",
-            item=self.lr_scheduler.get_last_lr()[0],
-            kind="metric",
-            step=self.train_glob_step,
-            batch_idx=batch_idx,
-        )
+        # self.log(
+        #     identifier="step/loss",
+        #     item=loss["Total"] / num_elems,
+        #     kind="metric",
+        #     step=self.train_glob_step,
+        #     batch_idx=batch_idx,
+        # )
+        # self.log(
+        #     identifier="step/num_elems",
+        #     item=num_elems,
+        #     kind="metric",
+        #     step=self.train_glob_step,
+        #     batch_idx=batch_idx,
+        # )
+        # self.log(
+        #     identifier="step/num_batch",
+        #     item=batch.X.shape[0],
+        #     kind="metric",
+        #     step=self.train_glob_step,
+        #     batch_idx=batch_idx,
+        # )
+        # self.log(
+        #     identifier="step/learning_rate",
+        #     item=self.lr_scheduler.get_last_lr()[0],
+        #     kind="metric",
+        #     step=self.train_glob_step,
+        #     batch_idx=batch_idx,
+        # )
         return loss
 
     def validation_epoch(self):
@@ -783,10 +783,10 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
         epoch_loss = defaultdict(lambda: torch.tensor(0.0, device=self.device))
         batch_counter = 0
 
-        # Confusion matrix tracking
-        cm_X_target = np.zeros((13, 13))
-        cm_X_pred = np.zeros((13, 13))
-        cm_id = np.zeros((13, 13))
+        # # Confusion matrix tracking
+        # cm_X_target = np.zeros((13, 13))
+        # cm_X_pred = np.zeros((13, 13))
+        # cm_id = np.zeros((13, 13))
 
         progress_bar = tqdm(
             enumerate(self.validation_dataloader),
@@ -799,15 +799,15 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
         for ival, batch in progress_bar:
             batch = batch.to(self.device, non_blocking=True)
 
-            # Save attention on first batch if requested
-            if (
-                self.config.save_attention
-                and self.strategy.is_main_worker
-                and ival == 0
-            ):
-                set_save_attention(self.model, self.config.outdir, True)
-            else:
-                set_save_attention(self.model, self.config.outdir, False)
+            # # Save attention on first batch if requested
+            # if (
+            #     self.config.save_attention
+            #     and self.strategy.is_main_worker
+            #     and ival == 0
+            # ):
+            #     set_save_attention(self.model, self.config.outdir, True)
+            # else:
+            #     set_save_attention(self.model, self.config.outdir, False)
 
             # Validation step
             batch = batch.to(self.device, non_blocking=True)
@@ -823,26 +823,26 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 ytarget = unpack_target(batch.ytarget, self.model)
                 _, loss = mlpf_loss(ytarget, ypred, batch)
 
-            # Update confusion matrices
-            cm_X_target += sklearn.metrics.confusion_matrix(
-                batch.X[:, :, 0][batch.mask].detach().cpu().numpy(),
-                ytarget["cls_id"][batch.mask].detach().cpu().numpy(),
-                labels=range(13),
-            )
-            cm_X_pred += sklearn.metrics.confusion_matrix(
-                batch.X[:, :, 0][batch.mask].detach().cpu().numpy(),
-                ypred["cls_id"][batch.mask].detach().cpu().numpy(),
-                labels=range(13),
-            )
-            cm_id += sklearn.metrics.confusion_matrix(
-                ytarget["cls_id"][batch.mask].detach().cpu().numpy(),
-                ypred["cls_id"][batch.mask].detach().cpu().numpy(),
-                labels=range(13),
-            )
+            # # Update confusion matrices
+            # cm_X_target += sklearn.metrics.confusion_matrix(
+            #     batch.X[:, :, 0][batch.mask].detach().cpu().numpy(),
+            #     ytarget["cls_id"][batch.mask].detach().cpu().numpy(),
+            #     labels=range(13),
+            # )
+            # cm_X_pred += sklearn.metrics.confusion_matrix(
+            #     batch.X[:, :, 0][batch.mask].detach().cpu().numpy(),
+            #     ypred["cls_id"][batch.mask].detach().cpu().numpy(),
+            #     labels=range(13),
+            # )
+            # cm_id += sklearn.metrics.confusion_matrix(
+            #     ytarget["cls_id"][batch.mask].detach().cpu().numpy(),
+            #     ypred["cls_id"][batch.mask].detach().cpu().numpy(),
+            #     labels=range(13),
+            # )
 
-            # Save validation plots for first batch
-            if self.strategy.is_main_worker and ival == 0:
-                self.validation_plots(batch=batch, ypred_raw=ypred_raw)
+            # # Save validation plots for first batch
+            # if self.strategy.is_main_worker and ival == 0:
+            #     self.validation_plots(batch=batch, ypred_raw=ypred_raw)
 
             # Accumulate losses
             for loss_name in loss:
@@ -852,12 +852,12 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             # Update global step counter
             self.validation_glob_step += 1
 
-        # Log confusion matrices
-        self.log_all_confusion_matrices(
-            cm_X_target=cm_X_target,
-            cm_X_pred=cm_X_pred,
-            cm_id=cm_id,
-        )
+        # # Log confusion matrices
+        # self.log_all_confusion_matrices(
+        #     cm_X_target=cm_X_target,
+        #     cm_X_pred=cm_X_pred,
+        #     cm_id=cm_id,
+        # )
 
         # Reduce losses only on the main worker -- save communication time compare to allreduce
         num_steps = torch.tensor(batch_counter, device=self.device, dtype=torch.float32)

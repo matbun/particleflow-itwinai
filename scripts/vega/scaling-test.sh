@@ -20,7 +20,7 @@ echo "You are going to delete '$LOGS_SLURM' and '$EXPERIMENTS'."
 read -p "Do you really want to delete the existing experiments and repeat the scaling test? [y/N] " choice
 
 if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
-  rm -rf $LOGS_SLURM
+  rm -rf $LOGS_SLURM logs_torchrun mllogs scalability-metrics plots
   mkdir $LOGS_SLURM
   rm -rf $EXPERIMENTS
 else
