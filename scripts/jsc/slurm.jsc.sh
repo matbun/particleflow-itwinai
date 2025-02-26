@@ -20,7 +20,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --output=job.out
 #SBATCH --error=job.err
-#SBATCH --time=00:20:00
+#SBATCH --time=00:10:00
 
 # Resources allocation
 #SBATCH --partition=develbooster
@@ -50,6 +50,11 @@ ml Python/3.11 HDF5 PnetCDF libaio mpi4py CMake cuDNN/8.9.5.29-CUDA-12
 source ~/.bashrc
 source $PYTHON_VENV/bin/activate
 
+# Make mlpf visible
+export PYTHONPATH="$PWD:$PYTHONPATH"
+
+export ITWINAI_LOG_LEVEL=DEBUG
+
 # Setup env for distributed ML
 export CUDA_VISIBLE_DEVICES=$(seq -s, 0 $((SLURM_GPUS_PER_NODE - 1)))
 export OMP_NUM_THREADS=1
@@ -71,65 +76,7 @@ torchrun_launcher(){
     --redirects=\$(((SLURM_NODEID)) && echo "3" || echo "1:3,2:3,3:3") \
     $1"
 }
-# Launch distribtued job in container with mpirun
-# NOTE: this was copied from the script for Vega and may not work here
-mpirun_launcher ()
-{
-  # https://doc.vega.izum.si/mpi/#multi-node-jobs
-  export UCX_TLS=self,sm,rc,ud
-  export OMPI_MCA_PML="ucx"
-  export OMPI_MCA_osc="ucx"
 
-  # Get the node list from Slurm
-  NODELIST=$(scontrol show hostnames "$SLURM_NODELIST")
-  SLOTS_PER_NODE=${SLURM_GPUS_PER_NODE:-1}
-
-  # Create the string for horovodrun format, e.g., "node1:4,node2:4,..."
-  HOSTFILE=""
-  for NODE in $NODELIST; do
-      if [ -z "$HOSTFILE" ]; then
-          # First node, no comma
-          HOSTFILE="$NODE:$SLOTS_PER_NODE"
-      else
-          # Subsequent nodes, prepend comma
-          HOSTFILE="$HOSTFILE,$NODE:$SLOTS_PER_NODE"
-      fi
-  done
-
-  # Display the generated hostfile (optional)
-  echo "Generated host string: $HOSTFILE"
-
-  # Calculate the total number of processes (GPUs in this case)
-  TOTAL_PROCESSES=$(($SLURM_GPUS_PER_NODE * $SLURM_NNODES))
-
-  # Calculate the total number of processes (GPUs in this case)
-  echo "SLURM_GPUS_PER_NODE: $SLURM_GPUS_PER_NODE"
-  echo "SLURM_NNODES: $SLURM_NNODES"
-  echo "TOTAL_MPI_PROCESSES: $TOTAL_PROCESSES"
-  echo "SLURM_CPUS_PER_GPU: $SLURM_CPUS_PER_GPU"
-  echo
-
-  # # Get OpenMPI installation prefixes (locally and in container)
-  # OMPI_CONTAINER="$(singularity exec ${CONTAINER_PATH} /bin/bash -c 'ompi_info' | grep Prefix | awk '{ print $2 }')"
-  # OMPI_HOST="$(ompi_info | grep Prefix | awk '{ print $2 }')"
-  # # If you want to explicitly mount host OpenMPI in container use --bind "${OMPI_HOST}":"${OMPI_CONTAINER}"  
-
-  # Avoid propagating PYTHONPATH to the singularity container, as it breaks the import of packages inside the container
-  # https://docs.sylabs.io/guides/4.1/user-guide/environment_and_metadata.html#environment-from-the-host
-  unset PYTHONPATH
-
-  # Create mpirun logs folder
-  mkdir -p "logs_mpirun/$SLURM_JOB_ID"
-
-  # https://doc.vega.izum.si/mpi/#multi-node-jobs
-  # "if [ $OMPI_COMM_WORLD_RANK  -ne 0 ]; then exec > "logs_mpirun/$SLURM_JOB_ID/rank.$OMPI_COMM_WORLD_RANK" 2>&1; fi; exec" redirects stdout and stderr of ranks != 0
-  # Logs of the main woker (rank == 0) will be incorportated into the standard SLURM out and err files
-  mpirun -H "${HOSTFILE}" -np $TOTAL_PROCESSES --oversubscribe -mca pml ucx -mca btl ^uct,tcp,openib,vader --bind-to core \
-    singularity exec --nv  \
-    "${CONTAINER_PATH}" /bin/bash -c \
-    'echo "Rank: $OMPI_COMM_WORLD_RANK, lrank: $OMPI_COMM_WORLD_LOCAL_RANK, Size: $OMPI_COMM_WORLD_SIZE, LD_LIBRARY_PATH=$LD_LIBRARY_PATH" &&  \
-    if [ $OMPI_COMM_WORLD_RANK  -ne 0 ]; then exec > "logs_mpirun/$SLURM_JOB_ID/rank.$OMPI_COMM_WORLD_RANK" 2>&1; fi; exec '"${1}"
-}
 
 srun_launcher ()
 {
@@ -276,7 +223,7 @@ if [ "${DIST_MODE}" == "ddp" ] ; then
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy ddp \
     --num-epochs 2 \
-    --itwinai-trainerv 2"
+    --itwinai-trainerv 3"
 
 
 decho
@@ -303,7 +250,7 @@ decho -e "\nLaunching Ray tests"
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy ddp \
     --num-epochs 2 \
-    --itwinai-trainerv 2"
+    --itwinai-trainerv 3"
 
 elif [ "${DIST_MODE}" == "deepspeed" ] ; then
 
@@ -324,7 +271,7 @@ elif [ "${DIST_MODE}" == "deepspeed" ] ; then
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
-    --itwinai-trainerv 2"
+    --itwinai-trainerv 3"
 
 decho
 decho "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+="
@@ -348,7 +295,7 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
-    --itwinai-trainerv 2"
+    --itwinai-trainerv 3"
 
   # decho -e "\nLaunching DeepSpeed strategy with mpirun"
   # mpirun_launcher "python -m ${COMMAND}"
@@ -378,7 +325,7 @@ elif [ "${DIST_MODE}" == "horovod" ] ; then
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy horovod \
     --num-epochs 2 \
-    --itwinai-trainerv 2"
+    --itwinai-trainerv 3"
 
 decho
 decho "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+="
@@ -402,7 +349,7 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --experiments-dir $PWD/experiments_scaling \
     --itwinai-strategy horovod \
     --num-epochs 2 \
-    --itwinai-trainerv 2"
+    --itwinai-trainerv 3"
 
 
 else

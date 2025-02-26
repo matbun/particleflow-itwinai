@@ -901,6 +901,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 kind="figure",
                 step=self.epoch,
             )
+            plt.close(fig)
 
             fig = plt.figure()
             msk = X[:, 0] == xcls

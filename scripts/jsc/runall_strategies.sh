@@ -9,7 +9,7 @@ export PYTHON_VENV=".venv"
 # Clear SLURM logs (*.out and *.err files)
 rm -rf logs_slurm
 mkdir logs_slurm
-rm -rf logs_torchrun logs_mpirun logs_srun checkpoints
+rm -rf logs_torchrun logs_mpirun logs_srun checkpoints mllogs
 
 
 # Disable pytest ANSI coloring

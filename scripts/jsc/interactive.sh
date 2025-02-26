@@ -108,7 +108,7 @@ run_itwinai(){
         --prefetch-factor 8 \
         --experiments-dir $PWD/experiments \
         --num-epochs 2  \
-        --itwinai-trainerv 3
+        --itwinai-trainerv 4
 }
 
 run_itwinai_ray(){
@@ -146,5 +146,5 @@ run_itwinai_ray(){
         --prefetch-factor 8 \
         --experiments-dir $PWD/experiments \
         --num-epochs 2 \
-        --itwinai-trainerv 3
+        --itwinai-trainerv 4
 }
