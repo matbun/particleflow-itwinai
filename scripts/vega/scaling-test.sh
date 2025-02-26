@@ -3,7 +3,7 @@
 LOGS_SLURM="logs_slurm"
 EXPERIMENTS="experiments_scaling"
 REPLICAS=1
-NODES_LIST="1 2 4 8 16"
+NODES_LIST="1 2 4" #"1 2 4 8 16"
 T="02:15:00"
 # RUN_NAME="mlpf-pyg-ray-bl"
 SCRIPT="scripts/vega/slurm.vega.sh"
@@ -11,8 +11,8 @@ BASELINE_SCRIPT="scripts/vega/training_ray.sh"
 
 # Variables for SLURM script
 export EXPERIMENTS_LOCATION=$EXPERIMENTS
-export BATCH_SIZE=32 #90
-export N_TRAIN=500 #700000
+export BATCH_SIZE=90 #32
+export N_TRAIN=70000 #500
 
 # NOTE: remember to check how many GPUs per node were requested in the slurm scripts!
 
