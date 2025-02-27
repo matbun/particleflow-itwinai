@@ -413,7 +413,7 @@ def train_all_epochs(
     # epoch_time_tracker: EpochTimeTracker | None = None
     # if (rank == 0) or (rank == "cpu"):
     strategy_name = "baseline-ray-ddp"
-    num_nodes = int(os.environ.get("SLURM_NNODES", 1))
+    num_nodes = int(config["slurm_nnodes"])
 
     epoch_time_output_dir = Path("scalability-metrics/epoch-time")
     epoch_time_file_name = f"{uuid.uuid4()}_{strategy_name}_{num_nodes}N.csv"
@@ -459,6 +459,7 @@ def train_all_epochs(
 
         # if (rank == 0) or (rank == "cpu"):
         epoch_time_tracker.add_epoch_time(epoch - 1, timer() - lt)
+        print(f"epochtime epoch {epoch - 1}: {timer() - lt}")
 
         # Validation epoch
         losses_valid = eval_epoch(

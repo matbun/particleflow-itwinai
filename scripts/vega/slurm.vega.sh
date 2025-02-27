@@ -233,6 +233,7 @@ if [ "${DIST_MODE}" == "ddp" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy ddp \
     --num-epochs 2 \
+    --slurm-nnodes $SLURM_NNODES \ 
     --itwinai-trainerv 4"
 
 
@@ -260,6 +261,7 @@ decho -e "\nLaunching Ray tests"
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy ddp \
     --num-epochs 2 \
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
 elif [ "${DIST_MODE}" == "deepspeed" ] ; then
@@ -281,6 +283,7 @@ elif [ "${DIST_MODE}" == "deepspeed" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
 decho
@@ -305,6 +308,7 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
   # decho -e "\nLaunching DeepSpeed strategy with mpirun"
@@ -335,6 +339,7 @@ elif [ "${DIST_MODE}" == "horovod" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy horovod \
     --num-epochs 2 \
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
 decho
@@ -359,6 +364,7 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy horovod \
     --num-epochs 2 \
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
 

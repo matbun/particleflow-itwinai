@@ -156,4 +156,5 @@ uv run python -u $PWD/mlpf/pipeline.py \
     --nvalid $N_VALID \
     --ntrain $N_TRAIN \
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
-    --num-epochs 2
+    --num-epochs 2 \
+    --slurm-nnodes $SLURM_NNODES
