@@ -27,10 +27,10 @@
 #SBATCH --nodes=2
 #SBATCH --gpus-per-node=4
 #SBATCH --gres=gpu:4
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=48
 #SBATCH --ntasks-per-node=1
 # SBATCH --mem-per-gpu=10G
-# SBATCH --exclusive
+#SBATCH --exclusive
 
 
 echo "DEBUG: SLURM_SUBMIT_DIR: $SLURM_SUBMIT_DIR"
@@ -38,6 +38,7 @@ echo "DEBUG: SLURM_JOB_ID: $SLURM_JOB_ID"
 echo "DEBUG: SLURM_JOB_NODELIST: $SLURM_JOB_NODELIST"
 echo "DEBUG: SLURM_NNODES: $SLURM_NNODES"
 echo "DEBUG: SLURM_NTASKS: $SLURM_NTASKS"
+echo "DEBUG: SLURM_CPUS_PER_TASK: $SLURM_CPUS_PER_TASK"
 echo "DEBUG: SLURM_TASKS_PER_NODE: $SLURM_TASKS_PER_NODE"
 echo "DEBUG: SLURM_SUBMIT_HOST: $SLURM_SUBMIT_HOST"
 echo "DEBUG: SLURMD_NODENAME: $SLURMD_NODENAME"
@@ -100,8 +101,6 @@ srun_launcher ()
 }
 
 ray_launcher(){
-  num_gpus=$SLURM_GPUS_PER_NODE
-  num_cpus=$SLURM_CPUS_PER_TASK
 
   # Path to shared filesystem that all the Ray workers can access. /tmp is a local filesystem path to each worker
   # This is only needed by tests
@@ -134,7 +133,7 @@ ray_launcher(){
   # number of CPUs and GPUs.
   srun --nodes=1 --ntasks=1 -w "$head_node" \
       ray start --head --node-ip-address="$head_node"i --port=$port \
-      --num-cpus "$num_cpus" --num-gpus "$num_gpus"  --block &
+      --num-cpus "$SLURM_CPUS_PER_TASK" --num-gpus "$SLURM_GPUS_PER_NODE"  --block &
 
   # Wait for a few seconds to ensure that the head node has fully initialized.
   sleep 1
@@ -152,7 +151,7 @@ ray_launcher(){
       # The `--address` option tells the worker node where to find the head node.
       srun --nodes=1 --ntasks=1 -w "$node_i" \
           ray start --address "$head_node"i:"$port" --redis-password='5241580000000000' \
-          --num-cpus "$num_cpus" --num-gpus "$num_gpus" --block &
+          --num-cpus "$SLURM_CPUS_PER_TASK" --num-gpus "$SLURM_GPUS_PER_NODE" --block &
       
       sleep 5 # Wait before starting the next worker to prevent race conditions.
   done

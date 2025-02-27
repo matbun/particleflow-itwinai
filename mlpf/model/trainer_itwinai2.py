@@ -315,6 +315,8 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             from_checkpoint=from_checkpoint,
         )
 
+        logging.info(self.config.model_dump())
+
         self.ray_run_config = ray.train.RunConfig(
             name=Path(self.config.outdir).name,
             storage_path=self.config.storage_path,
@@ -326,13 +328,17 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             sync_config=ray.train.SyncConfig(sync_artifacts=True),
         )
 
+        use_gpu = self.config.gpus > 0
+        num_workers = self.config.gpus if use_gpu else 1
+        resources = {
+            "CPU": max(1, self.config.ray_cpus // num_workers - 1),
+            "GPU": int(use_gpu),
+        }  # -1 to avoid blocking
+        print(f"RAY_RESOURCES_PER_WORKER: {resources}")
         self.ray_scaling_config = ray.train.ScalingConfig(
-            num_workers=self.config.gpus if self.config.gpus > 0 else 1,
-            use_gpu=self.config.gpus > 0,
-            resources_per_worker={
-                "CPU": max(1, self.config.ray_cpus // self.config.num_workers - 1),
-                "GPU": int(self.config.gpus > 0),
-            },  # -1 to avoid blocking
+            num_workers=num_workers,
+            use_gpu=use_gpu,
+            resources_per_worker=resources,
         )
 
         # Initial epoch: here the convention is to start from 1

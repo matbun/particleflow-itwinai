@@ -40,10 +40,12 @@ def run_ray_training(config, args, outdir):
 
     use_gpu = args.gpus > 0
     num_workers = args.gpus if use_gpu else 1
+    resources = {"CPU": max(1, args.ray_cpus // num_workers - 1), "GPU": int(use_gpu)}  # -1 to avoid blocking
+    print(F"RAY_RESOURCES_PER_WORKER: {resources}")
     scaling_config = ray.train.ScalingConfig(
         num_workers=num_workers,
         use_gpu=use_gpu,
-        resources_per_worker={"CPU": max(1, args.ray_cpus // num_workers - 1), "GPU": int(use_gpu)},  # -1 to avoid blocking
+        resources_per_worker=resources,
     )
     storage_path = Path(args.experiments_dir if args.experiments_dir else "experiments").resolve()
     run_config = ray.train.RunConfig(
