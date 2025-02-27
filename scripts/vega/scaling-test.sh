@@ -11,7 +11,7 @@ BASELINE_SCRIPT="scripts/vega/training_ray.sh"
 
 # Variables for SLURM script
 export EXPERIMENTS_LOCATION=$EXPERIMENTS
-export BATCH_SIZE=90 #32
+export BATCH_SIZE=64 #32
 export N_TRAIN=70000 #500
 
 # NOTE: remember to check how many GPUs per node were requested in the slurm scripts!

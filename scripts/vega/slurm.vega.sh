@@ -63,7 +63,14 @@ if [ $SLURM_CPUS_PER_GPU -gt 0 ] ; then
   export OMP_NUM_THREADS=$SLURM_CPUS_PER_GPU
 fi
 
+# Disable ANSI colors in log files
 export NO_COLOR=1
+
+export NCCL_SOCKET_IFNAME=ib0   # Use infiniband interface ib0
+export NCCL_DEBUG=INFO          # Enables detailed logging
+export NCCL_P2P_DISABLE=0       # Ensure P2P communication is enabled
+export NCCL_IB_DISABLE=0        # Ensure InfiniBand is used if available
+export GLOO_SOCKET_IFNAME=ib0   # Ensure GLOO (fallback) also uses the correct interface
 
 # Launchers
 torchrun_launcher(){
