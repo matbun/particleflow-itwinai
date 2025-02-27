@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 import tqdm
 import yaml
 import json
+import uuid
 
 # import sklearn
 # import sklearn.metrics
@@ -409,18 +410,19 @@ def train_all_epochs(
     #     tensorboard_writer_valid = None
 
     # Epoch time tracker itwinai
-    epoch_time_tracker: EpochTimeTracker | None = None
-    if (rank == 0) or (rank == "cpu"):
-        strategy_name = "baseline-ray-ddp"
-        num_nodes = int(os.environ.get("SLURM_NNODES", 1))
-        epoch_time_output_dir = Path("scalability-metrics/epoch-time")
-        epoch_time_file_name = f"epochtime_{strategy_name}_{num_nodes}N.csv"
-        epoch_time_output_path = epoch_time_output_dir / epoch_time_file_name
-        epoch_time_tracker = EpochTimeTracker(
-            strategy_name=strategy_name,
-            save_path=epoch_time_output_path,
-            num_nodes=num_nodes,
-        )
+    # epoch_time_tracker: EpochTimeTracker | None = None
+    # if (rank == 0) or (rank == "cpu"):
+    strategy_name = "baseline-ray-ddp"
+    num_nodes = int(os.environ.get("SLURM_NNODES", 1))
+
+    epoch_time_output_dir = Path("scalability-metrics/epoch-time")
+    epoch_time_file_name = f"{uuid.uuid4()}_{strategy_name}_{num_nodes}N.csv"
+    epoch_time_output_path = epoch_time_output_dir / epoch_time_file_name
+    epoch_time_tracker = EpochTimeTracker(
+        strategy_name=strategy_name,
+        save_path=epoch_time_output_path,
+        num_nodes=num_nodes,
+    )
 
     device_type = "cuda" if isinstance(rank, int) else "cpu"
     t0_initial = time.time()
@@ -455,9 +457,8 @@ def train_all_epochs(
         )
         train_time = time.time() - epoch_start_time
 
-        if (rank == 0) or (rank == "cpu"):
-            assert epoch_time_tracker is not None
-            epoch_time_tracker.add_epoch_time(epoch - 1, timer() - lt)
+        # if (rank == 0) or (rank == "cpu"):
+        epoch_time_tracker.add_epoch_time(epoch - 1, timer() - lt)
 
         # Validation epoch
         losses_valid = eval_epoch(
@@ -635,9 +636,8 @@ def train_all_epochs(
         f"Training completed. Total time on device {rank}: {(time.time() - t0_initial) / 60:.3f}min"
     )
 
-    if (rank == 0) or (rank == "cpu"):
-        assert epoch_time_tracker is not None
-        epoch_time_tracker.save()
+    # if (rank == 0) or (rank == "cpu"):
+    epoch_time_tracker.save()
 
     # # Clean up
     # if (rank == 0) or (rank == "cpu"):

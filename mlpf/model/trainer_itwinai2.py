@@ -2,6 +2,7 @@
 
 import glob
 import json
+import uuid
 import logging
 import os
 import time
@@ -526,17 +527,17 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         # t0_initial = time.time()
 
-        epoch_time_tracker: EpochTimeTracker | None = None
-        if self.strategy.is_main_worker:
-            num_nodes = int(os.environ.get("SLURM_NNODES", 1))
-            epoch_time_output_dir = Path("scalability-metrics/epoch-time")
-            epoch_time_file_name = f"epochtime_{self.strategy.name}_{num_nodes}N.csv"
-            epoch_time_output_path = epoch_time_output_dir / epoch_time_file_name
-            epoch_time_tracker = EpochTimeTracker(
-                strategy_name=self.strategy.name,
-                save_path=epoch_time_output_path,
-                num_nodes=num_nodes,
-            )
+        # epoch_time_tracker: EpochTimeTracker | None = None
+        # if self.strategy.is_main_worker:
+        num_nodes = int(os.environ.get("SLURM_NNODES", 1))
+        epoch_time_output_dir = Path("scalability-metrics/epoch-time")
+        epoch_time_file_name = f"{uuid.uuid4()}_{self.strategy.name}_{num_nodes}N.csv"
+        epoch_time_output_path = epoch_time_output_dir / epoch_time_file_name
+        epoch_time_tracker = EpochTimeTracker(
+            strategy_name=self.strategy.name,
+            save_path=epoch_time_output_path,
+            num_nodes=num_nodes,
+        )
 
         # Early stopping setup
         stale_epochs = torch.tensor(0, device=self.device)
@@ -554,9 +555,9 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             losses_train = self.train_epoch()
             train_time = time.time() - epoch_start_time
 
-            if self.strategy.is_main_worker:
-                assert epoch_time_tracker is not None
-                epoch_time_tracker.add_epoch_time(self.epoch - 1, timer() - lt)
+            # if self.strategy.is_main_worker:
+            #     assert epoch_time_tracker is not None
+            epoch_time_tracker.add_epoch_time(self.epoch - 1, timer() - lt)
 
             # Validation epoch
             losses_valid = self.validation_epoch()
@@ -659,9 +660,12 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             #     logging.info(f"Breaking due to stale epochs: {stale_epochs}")
             #     break
 
-        if self.strategy.is_main_worker:
-            assert epoch_time_tracker is not None
-            epoch_time_tracker.save()
+            # Sync workers
+            self.strategy.barrier()
+
+        # if self.strategy.is_main_worker:
+        #     assert epoch_time_tracker is not None
+        epoch_time_tracker.save()
 
     def train_epoch(self):
         """Run one training epoch

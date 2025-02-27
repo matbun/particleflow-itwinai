@@ -3,7 +3,7 @@
 LOGS_SLURM="logs_slurm"
 EXPERIMENTS="experiments_scaling"
 REPLICAS=1
-NODES_LIST="1 2 4" #"1 2 4 8 16"
+NODES_LIST="1 2" #"1 2 4 8 16"
 T="02:15:00"
 # RUN_NAME="mlpf-pyg-ray-bl"
 SCRIPT="scripts/vega/slurm.vega.sh"

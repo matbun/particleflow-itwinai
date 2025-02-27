@@ -72,6 +72,11 @@ export NCCL_P2P_DISABLE=0       # Ensure P2P communication is enabled
 export NCCL_IB_DISABLE=0        # Ensure InfiniBand is used if available
 export GLOO_SOCKET_IFNAME=ib0   # Ensure GLOO (fallback) also uses the correct interface
 
+# # work-around for flipping links issue on JUWELS-BOOSTER
+# export NCCL_IB_TIMEOUT=250
+# export UCX_RC_TIMEOUT=16s
+# export NCCL_IB_RETRY_CNT=50
+
 # Launchers
 torchrun_launcher(){
   srun --cpu-bind=none --ntasks-per-node=1 \

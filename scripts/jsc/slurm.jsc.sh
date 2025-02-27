@@ -204,6 +204,11 @@ echo "DIST_MODE: $DIST_MODE"
 echo "CONTAINER_PATH: $CONTAINER_PATH"
 echo "COMMAND: $COMMAND"
 
+# work-around for flipping links issue on JUWELS-BOOSTER
+export NCCL_IB_TIMEOUT=250
+export UCX_RC_TIMEOUT=16s
+export NCCL_IB_RETRY_CNT=50
+
 ######################   Execute command   ######################
 
 if [ "${DIST_MODE}" == "ddp" ] ; then
