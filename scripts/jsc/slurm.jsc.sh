@@ -209,6 +209,10 @@ export NCCL_IB_TIMEOUT=250
 export UCX_RC_TIMEOUT=16s
 export NCCL_IB_RETRY_CNT=50
 
+#other stuff I found...
+export UCX_TLS="^cma"
+export UCX_NET_DEVICES=mlx5_0:1,mlx5_1:1,mlx5_4:1,mlx5_5:1
+
 ######################   Execute command   ######################
 
 if [ "${DIST_MODE}" == "ddp" ] ; then
