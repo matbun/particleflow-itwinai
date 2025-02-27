@@ -670,7 +670,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         progress_bar = tqdm(
             enumerate(self.train_dataloader),
-            total=len(self.train_dataloader) // self.strategy.global_world_size(),
+            total=len(self.train_dataloader),
             desc=f"Epoch {self.epoch} train loop on rank={self.strategy.global_rank()}",
             disable=self.disable_tqdm or not self.strategy.is_main_worker,
             leave=False,  # Set this to true to see how many batches were used
@@ -790,7 +790,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         progress_bar = tqdm(
             enumerate(self.validation_dataloader),
-            total=len(self.validation_dataloader) // self.strategy.global_world_size(),
+            total=len(self.validation_dataloader),
             desc=f"Epoch {self.epoch} eval loop on rank={self.strategy.global_rank()}",
             disable=self.disable_tqdm or not self.strategy.is_main_worker,
             leave=False,  # Set this to true to see how many batches were used

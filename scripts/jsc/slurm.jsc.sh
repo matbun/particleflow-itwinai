@@ -11,7 +11,7 @@
 
 # shellcheck disable=all
 
-# SLURM jobscript for Vega systems
+# SLURM jobscript for JSC systems
 
 # Job configuration
 #SBATCH --job-name=test
@@ -24,10 +24,10 @@
 
 # Resources allocation
 #SBATCH --partition=booster
-#SBATCH --nodes=1
+#SBATCH --nodes=2
 #SBATCH --gpus-per-node=4
 #SBATCH --gres=gpu:4
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=8
 #SBATCH --ntasks-per-node=1
 # SBATCH --mem-per-gpu=10G
 # SBATCH --exclusive
@@ -64,6 +64,13 @@ if [ $SLURM_CPUS_PER_GPU -gt 0 ] ; then
 fi
 
 torchrun_launcher(){
+  
+  export NCCL_SOCKET_IFNAME=ib0   # Use infiniband interface ib0
+  export NCCL_DEBUG=INFO          # Enables detailed logging
+  export NCCL_P2P_DISABLE=0       # Ensure P2P communication is enabled
+  export NCCL_IB_DISABLE=0        # Ensure InfiniBand is used if available
+  export GLOO_SOCKET_IFNAME=ib0   # Ensure GLOO (fallback) also uses the correct interface
+
   srun --cpu-bind=none --ntasks-per-node=1 \
     bash -c "torchrun \
     --log_dir='logs_torchrun' \

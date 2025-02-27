@@ -16,7 +16,7 @@
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=4
 #SBATCH --gres=gpu:4
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=8
 #SBATCH --ntasks-per-node=1
 # SBATCH --mem-per-gpu=10G
 # SBATCH --exclusive
