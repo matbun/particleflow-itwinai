@@ -4,7 +4,8 @@ LOGS_SLURM="logs_slurm"
 EXPERIMENTS="experiments_scaling"
 REPLICAS=1
 NODES_LIST="1 2 4 8" #"1 2 4 8 16"
-T="02:15:00"
+BASE_TIME=75 #minutes
+T=$BASE_TIME #"01:15:00"
 # RUN_NAME="mlpf-pyg-ray-bl"
 SCRIPT="scripts/vega/slurm.vega.sh"
 BASELINE_SCRIPT="scripts/vega/training_ray.sh"
@@ -12,7 +13,7 @@ BASELINE_SCRIPT="scripts/vega/training_ray.sh"
 # Variables for SLURM script
 export EXPERIMENTS_LOCATION=$EXPERIMENTS
 export BATCH_SIZE=32 #32
-export N_TRAIN=100000 #500
+export N_TRAIN=10000  #100000 #500
 
 # NOTE: remember to check how many GPUs per node were requested in the slurm scripts!
 
@@ -31,6 +32,8 @@ fi
 # Scaling test
 for N in $NODES_LIST
 do
+    T=$((BASE_TIME / N + 10))
+
     for (( i=0; i < $REPLICAS; i++  )); do
 
         # Validation data should be just enough so that all workers receive a bit
@@ -66,15 +69,15 @@ do
         --time=$T \
         $SCRIPT
 
-        # Baseline without itwinai
-        export RUN_NAME="baseline-mlpf"
-        sbatch \
-        --job-name="$RUN_NAME-n$N" \
-        --output="$LOGS_SLURM/job-$RUN_NAME-n$N-$i.out" \
-        --error="$LOGS_SLURM/job-$RUN_NAME-n$N-$i.err" \
-        --nodes=$N \
-        --time=$T \
-        $BASELINE_SCRIPT
+        # # Baseline without itwinai
+        # export RUN_NAME="baseline-mlpf"
+        # sbatch \
+        # --job-name="$RUN_NAME-n$N" \
+        # --output="$LOGS_SLURM/job-$RUN_NAME-n$N-$i.out" \
+        # --error="$LOGS_SLURM/job-$RUN_NAME-n$N-$i.err" \
+        # --nodes=$N \
+        # --time=$T \
+        # $BASELINE_SCRIPT
 
     done
 done

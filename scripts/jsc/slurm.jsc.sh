@@ -72,6 +72,9 @@ torchrun_launcher(){
   export NCCL_IB_DISABLE=0        # Ensure InfiniBand is used if available
   export GLOO_SOCKET_IFNAME=ib0   # Ensure GLOO (fallback) also uses the correct interface
 
+  # Stop Ray processes, if any
+  srun uv run ray stop
+
   srun --cpu-bind=none --ntasks-per-node=1 \
     bash -c "torchrun \
     --log_dir='logs_torchrun' \
@@ -89,6 +92,9 @@ torchrun_launcher(){
 
 srun_launcher ()
 {
+  # Stop Ray processes, if any
+  srun uv run ray stop
+
   # Create mpirun logs folder
   mkdir -p "logs_srun/$SLURM_JOB_ID"
 
@@ -136,7 +142,7 @@ ray_launcher(){
       --num-cpus "$SLURM_CPUS_PER_TASK" --num-gpus "$SLURM_GPUS_PER_NODE"  --block &
 
   # Wait for a few seconds to ensure that the head node has fully initialized.
-  sleep 1
+  sleep 5
 
   echo HEAD node started.
 
@@ -234,7 +240,7 @@ if [ "${DIST_MODE}" == "ddp" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy ddp \
     --num-epochs 2 \
-    --slurm-nnodes $SLURM_NNODES \ 
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
 
@@ -262,7 +268,7 @@ decho -e "\nLaunching Ray tests"
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy ddp \
     --num-epochs 2 \
-    --slurm-nnodes $SLURM_NNODES \ 
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
 elif [ "${DIST_MODE}" == "deepspeed" ] ; then
@@ -284,7 +290,7 @@ elif [ "${DIST_MODE}" == "deepspeed" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
-    --slurm-nnodes $SLURM_NNODES \ 
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
 decho
@@ -309,7 +315,7 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
-    --slurm-nnodes $SLURM_NNODES \ 
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
   # decho -e "\nLaunching DeepSpeed strategy with mpirun"
@@ -340,7 +346,7 @@ elif [ "${DIST_MODE}" == "horovod" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy horovod \
     --num-epochs 2 \
-    --slurm-nnodes $SLURM_NNODES \ 
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
 decho
@@ -365,7 +371,7 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy horovod \
     --num-epochs 2 \
-    --slurm-nnodes $SLURM_NNODES \ 
+    --slurm-nnodes $SLURM_NNODES \
     --itwinai-trainerv 4"
 
 

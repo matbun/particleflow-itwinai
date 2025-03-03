@@ -513,7 +513,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         self._set_epoch_dataloaders(self.epoch - 1)
 
-    # @profile_torch_trainer
+    @profile_torch_trainer
     @measure_gpu_utilization
     def train(self) -> None:
         # TODO: define dynamically
