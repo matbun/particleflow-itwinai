@@ -11,7 +11,7 @@
 
 # shellcheck disable=all
 
-# SLURM jobscript for Vega systems
+# SLURM jobscript for JSC systems
 
 # Job configuration
 #SBATCH --job-name=test
@@ -24,13 +24,13 @@
 
 # Resources allocation
 #SBATCH --partition=booster
-#SBATCH --nodes=1
-#SBATCH --gpus-per-node=2
-#SBATCH --gres=gpu:2
-#SBATCH --cpus-per-task=16
+#SBATCH --nodes=2
+#SBATCH --gpus-per-node=4
+#SBATCH --gres=gpu:4
+#SBATCH --cpus-per-task=48
 #SBATCH --ntasks-per-node=1
 # SBATCH --mem-per-gpu=10G
-# SBATCH --exclusive
+#SBATCH --exclusive
 
 
 echo "DEBUG: SLURM_SUBMIT_DIR: $SLURM_SUBMIT_DIR"
@@ -38,6 +38,7 @@ echo "DEBUG: SLURM_JOB_ID: $SLURM_JOB_ID"
 echo "DEBUG: SLURM_JOB_NODELIST: $SLURM_JOB_NODELIST"
 echo "DEBUG: SLURM_NNODES: $SLURM_NNODES"
 echo "DEBUG: SLURM_NTASKS: $SLURM_NTASKS"
+echo "DEBUG: SLURM_CPUS_PER_TASK: $SLURM_CPUS_PER_TASK"
 echo "DEBUG: SLURM_TASKS_PER_NODE: $SLURM_TASKS_PER_NODE"
 echo "DEBUG: SLURM_SUBMIT_HOST: $SLURM_SUBMIT_HOST"
 echo "DEBUG: SLURMD_NODENAME: $SLURMD_NODENAME"
@@ -64,6 +65,16 @@ if [ $SLURM_CPUS_PER_GPU -gt 0 ] ; then
 fi
 
 torchrun_launcher(){
+  
+  export NCCL_SOCKET_IFNAME=ib0   # Use infiniband interface ib0
+  export NCCL_DEBUG=INFO          # Enables detailed logging
+  export NCCL_P2P_DISABLE=0       # Ensure P2P communication is enabled
+  export NCCL_IB_DISABLE=0        # Ensure InfiniBand is used if available
+  export GLOO_SOCKET_IFNAME=ib0   # Ensure GLOO (fallback) also uses the correct interface
+
+  # Stop Ray processes, if any
+  srun uv run ray stop
+
   srun --cpu-bind=none --ntasks-per-node=1 \
     bash -c "torchrun \
     --log_dir='logs_torchrun' \
@@ -81,6 +92,9 @@ torchrun_launcher(){
 
 srun_launcher ()
 {
+  # Stop Ray processes, if any
+  srun uv run ray stop
+
   # Create mpirun logs folder
   mkdir -p "logs_srun/$SLURM_JOB_ID"
 
@@ -93,8 +107,6 @@ srun_launcher ()
 }
 
 ray_launcher(){
-  num_gpus=$SLURM_GPUS_PER_NODE
-  num_cpus=$SLURM_CPUS_PER_TASK
 
   # Path to shared filesystem that all the Ray workers can access. /tmp is a local filesystem path to each worker
   # This is only needed by tests
@@ -127,10 +139,10 @@ ray_launcher(){
   # number of CPUs and GPUs.
   srun --nodes=1 --ntasks=1 -w "$head_node" \
       ray start --head --node-ip-address="$head_node"i --port=$port \
-      --num-cpus "$num_cpus" --num-gpus "$num_gpus"  --block &
+      --num-cpus "$SLURM_CPUS_PER_TASK" --num-gpus "$SLURM_GPUS_PER_NODE"  --block &
 
   # Wait for a few seconds to ensure that the head node has fully initialized.
-  sleep 1
+  sleep 5
 
   echo HEAD node started.
 
@@ -145,7 +157,7 @@ ray_launcher(){
       # The `--address` option tells the worker node where to find the head node.
       srun --nodes=1 --ntasks=1 -w "$node_i" \
           ray start --address "$head_node"i:"$port" --redis-password='5241580000000000' \
-          --num-cpus "$num_cpus" --num-gpus "$num_gpus" --block &
+          --num-cpus "$SLURM_CPUS_PER_TASK" --num-gpus "$SLURM_GPUS_PER_NODE" --block &
       
       sleep 5 # Wait before starting the next worker to prevent race conditions.
   done
@@ -198,6 +210,15 @@ echo "DIST_MODE: $DIST_MODE"
 echo "CONTAINER_PATH: $CONTAINER_PATH"
 echo "COMMAND: $COMMAND"
 
+# work-around for flipping links issue on JUWELS-BOOSTER
+export NCCL_IB_TIMEOUT=250
+export UCX_RC_TIMEOUT=16s
+export NCCL_IB_RETRY_CNT=50
+
+#other stuff I found...
+export UCX_TLS="^cma"
+export UCX_NET_DEVICES=mlx5_0:1,mlx5_1:1,mlx5_4:1,mlx5_5:1
+
 ######################   Execute command   ######################
 
 if [ "${DIST_MODE}" == "ddp" ] ; then
@@ -219,7 +240,8 @@ if [ "${DIST_MODE}" == "ddp" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy ddp \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --slurm-nnodes $SLURM_NNODES \
+    --itwinai-trainerv 4"
 
 
 decho
@@ -246,7 +268,8 @@ decho -e "\nLaunching Ray tests"
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy ddp \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --slurm-nnodes $SLURM_NNODES \
+    --itwinai-trainerv 4"
 
 elif [ "${DIST_MODE}" == "deepspeed" ] ; then
 
@@ -267,7 +290,8 @@ elif [ "${DIST_MODE}" == "deepspeed" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --slurm-nnodes $SLURM_NNODES \
+    --itwinai-trainerv 4"
 
 decho
 decho "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+="
@@ -291,7 +315,8 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy deepspeed \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --slurm-nnodes $SLURM_NNODES \
+    --itwinai-trainerv 4"
 
   # decho -e "\nLaunching DeepSpeed strategy with mpirun"
   # mpirun_launcher "python -m ${COMMAND}"
@@ -321,7 +346,8 @@ elif [ "${DIST_MODE}" == "horovod" ] ; then
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy horovod \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --slurm-nnodes $SLURM_NNODES \
+    --itwinai-trainerv 4"
 
 decho
 decho "+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+="
@@ -345,7 +371,8 @@ ray_launcher "uv run python -u $PWD/mlpf/pipeline_itwinai.py \
     --experiments-dir $PWD/$EXPERIMENTS_LOCATION \
     --itwinai-strategy horovod \
     --num-epochs 2 \
-    --itwinai-trainerv 3"
+    --slurm-nnodes $SLURM_NNODES \
+    --itwinai-trainerv 4"
 
 
 else

@@ -3,16 +3,17 @@
 LOGS_SLURM="logs_slurm"
 EXPERIMENTS="experiments_scaling"
 REPLICAS=1
-NODES_LIST="1 2 4 8 16"
-T="02:15:00"
+NODES_LIST="1 2 4 8" #"1 2 4 8 16"
+BASE_TIME=75 #minutes
+T=$BASE_TIME #"01:15:00"
 # RUN_NAME="mlpf-pyg-ray-bl"
 SCRIPT="scripts/vega/slurm.vega.sh"
 BASELINE_SCRIPT="scripts/vega/training_ray.sh"
 
 # Variables for SLURM script
 export EXPERIMENTS_LOCATION=$EXPERIMENTS
-export BATCH_SIZE=32 #90
-export N_TRAIN=500 #700000
+export BATCH_SIZE=32 #32
+export N_TRAIN=10000  #100000 #500
 
 # NOTE: remember to check how many GPUs per node were requested in the slurm scripts!
 
@@ -20,7 +21,7 @@ echo "You are going to delete '$LOGS_SLURM' and '$EXPERIMENTS'."
 read -p "Do you really want to delete the existing experiments and repeat the scaling test? [y/N] " choice
 
 if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
-  rm -rf $LOGS_SLURM
+  rm -rf $LOGS_SLURM logs_torchrun logs_srun mllogs scalability-metrics plots
   mkdir $LOGS_SLURM
   rm -rf $EXPERIMENTS
 else
@@ -31,6 +32,8 @@ fi
 # Scaling test
 for N in $NODES_LIST
 do
+    T=$((BASE_TIME / N + 10))
+
     for (( i=0; i < $REPLICAS; i++  )); do
 
         # Validation data should be just enough so that all workers receive a bit

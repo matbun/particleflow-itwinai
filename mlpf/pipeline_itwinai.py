@@ -193,6 +193,7 @@ parser.add_argument(
 parser.add_argument(
     "--itwinai-trainerv", default=1, type=int, help="itwinai trainer version"
 )
+parser.add_argument("--slurm-nnodes", type=int, help="test samples to process")
 
 
 def get_outdir(resume_training, load):
@@ -222,6 +223,7 @@ def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
         config["storage_path"] = Path(
             args.experiments_dir if args.experiments_dir else "experiments"
         ).resolve()
+        config["slurm_nnodes"] = args.slurm_nnodes
         config["ray_cpus"] = args.ray_cpus
         return Pipeline(
             steps=[
@@ -239,6 +241,7 @@ def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
         config["storage_path"] = Path(
             args.experiments_dir if args.experiments_dir else "experiments"
         ).resolve()
+        config["slurm_nnodes"] = args.slurm_nnodes
         config["ray_cpus"] = args.ray_cpus
         return Pipeline(
             steps=[
@@ -258,6 +261,7 @@ def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
             args.experiments_dir if args.experiments_dir else "experiments"
         ).resolve()
         config["ray_cpus"] = args.ray_cpus
+        config["slurm_nnodes"] = args.slurm_nnodes
         return Pipeline(
             steps=[
                 MLPFTrainer2(
@@ -271,6 +275,25 @@ def itwinai_pipeline(config: Dict, args, outdir: str) -> Pipeline:
                             TensorBoardLogger(log_freq=100),
                         ]
                     ),
+                )
+            ]
+        )
+    if args.itwinai_trainerv == 4:
+        # Full integrationa nd checkpoint/loggers disabled
+        config["outdir"] = outdir
+        config["storage_path"] = Path(
+            args.experiments_dir if args.experiments_dir else "experiments"
+        ).resolve()
+        config["ray_cpus"] = args.ray_cpus
+        config["slurm_nnodes"] = args.slurm_nnodes
+        return Pipeline(
+            steps=[
+                MLPFTrainer2(
+                    config=config,
+                    epochs=config["num_epochs"],
+                    strategy=args.itwinai_strategy,
+                    checkpoints_location=Path(outdir) / "checkpoints",
+                    checkpoint_every=None,
                 )
             ]
         )
@@ -350,10 +373,10 @@ def main():
                 else "experiments",
             )
 
-        # Save config for later reference. Note that saving happens after parameters are overwritten by cmd line args.
-        config_filename = "train-config.yaml" if args.train else "test-config.yaml"
-        with open((Path(outdir) / config_filename), "w") as file:
-            yaml.dump(config, file)
+        # # Save config for later reference. Note that saving happens after parameters are overwritten by cmd line args.
+        # config_filename = "train-config.yaml" if args.train else "test-config.yaml"
+        # with open((Path(outdir) / config_filename), "w") as file:
+        #     yaml.dump(config, file)
 
         # Run itwinai training
         print(f"outdir: {outdir}")

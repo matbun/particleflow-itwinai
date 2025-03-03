@@ -14,7 +14,7 @@ def create_experiment_dir(prefix=None, suffix=None, experiments_dir="experiments
     if suffix is not None:
         train_dir = train_dir.with_name(train_dir.name + "." + platform.node())
 
-    train_dir.mkdir(parents=True)
+    train_dir.mkdir(parents=True, exist_ok=True)
 
     return str(train_dir)
 

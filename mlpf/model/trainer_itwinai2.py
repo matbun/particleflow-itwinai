@@ -2,6 +2,7 @@
 
 import glob
 import json
+import uuid
 import logging
 import os
 import time
@@ -315,6 +316,8 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             from_checkpoint=from_checkpoint,
         )
 
+        logging.info(self.config.model_dump())
+
         self.ray_run_config = ray.train.RunConfig(
             name=Path(self.config.outdir).name,
             storage_path=self.config.storage_path,
@@ -326,13 +329,17 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             sync_config=ray.train.SyncConfig(sync_artifacts=True),
         )
 
+        use_gpu = self.config.gpus > 0
+        num_workers = self.config.gpus if use_gpu else 1
+        resources = {
+            "CPU": max(1, self.config.ray_cpus // num_workers - 1),
+            "GPU": int(use_gpu),
+        }  # -1 to avoid blocking
+        print(f"RAY_RESOURCES_PER_WORKER: {resources}")
         self.ray_scaling_config = ray.train.ScalingConfig(
-            num_workers=self.config.gpus if self.config.gpus > 0 else 1,
-            use_gpu=self.config.gpus > 0,
-            resources_per_worker={
-                "CPU": max(1, self.config.ray_cpus // self.config.num_workers - 1),
-                "GPU": int(self.config.gpus > 0),
-            },  # -1 to avoid blocking
+            num_workers=num_workers,
+            use_gpu=use_gpu,
+            resources_per_worker=resources,
         )
 
         # Initial epoch: here the convention is to start from 1
@@ -520,17 +527,17 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         # t0_initial = time.time()
 
-        epoch_time_tracker: EpochTimeTracker | None = None
-        if self.strategy.is_main_worker:
-            num_nodes = int(os.environ.get("SLURM_NNODES", 1))
-            epoch_time_output_dir = Path("scalability-metrics/epoch-time")
-            epoch_time_file_name = f"epochtime_{self.strategy.name}_{num_nodes}N.csv"
-            epoch_time_output_path = epoch_time_output_dir / epoch_time_file_name
-            epoch_time_tracker = EpochTimeTracker(
-                strategy_name=self.strategy.name,
-                save_path=epoch_time_output_path,
-                num_nodes=num_nodes,
-            )
+        # epoch_time_tracker: EpochTimeTracker | None = None
+        # if self.strategy.is_main_worker:
+        num_nodes = int(self.config.slurm_nnodes)
+        epoch_time_output_dir = Path("scalability-metrics/epoch-time")
+        epoch_time_file_name = f"{uuid.uuid4()}_{self.strategy.name}_{num_nodes}N.csv"
+        epoch_time_output_path = epoch_time_output_dir / epoch_time_file_name
+        epoch_time_tracker = EpochTimeTracker(
+            strategy_name=self.strategy.name,
+            save_path=epoch_time_output_path,
+            num_nodes=num_nodes,
+        )
 
         # Early stopping setup
         stale_epochs = torch.tensor(0, device=self.device)
@@ -548,9 +555,10 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
             losses_train = self.train_epoch()
             train_time = time.time() - epoch_start_time
 
-            if self.strategy.is_main_worker:
-                assert epoch_time_tracker is not None
-                epoch_time_tracker.add_epoch_time(self.epoch - 1, timer() - lt)
+            # if self.strategy.is_main_worker:
+            #     assert epoch_time_tracker is not None
+            epoch_time_tracker.add_epoch_time(self.epoch - 1, timer() - lt)
+            print(f"epochtime epoch {self.epoch - 1}: {timer() - lt}")
 
             # Validation epoch
             losses_valid = self.validation_epoch()
@@ -618,19 +626,19 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                     name=f"epoch_{self.epoch:02d}-{losses_valid['Total']:.6f}"
                 )
 
-                # Save epoch stats to JSON
-                # TODO: remove this block
-                history_path = Path(self.config.outdir) / "history"
-                history_path.mkdir(parents=True, exist_ok=True)
-                stats = {
-                    "train": losses_train,
-                    "valid": losses_valid,
-                    "epoch_train_time": train_time,
-                    "epoch_valid_time": valid_time,
-                    "epoch_total_time": total_time,
-                }
-                with open(f"{history_path}/epoch_{self.epoch}.json", "w") as f:
-                    json.dump(stats, f)
+            # # Save epoch stats to JSON
+            # # TODO: remove this block
+            # history_path = Path(self.config.outdir) / "history"
+            # history_path.mkdir(parents=True, exist_ok=True)
+            # stats = {
+            #     "train": losses_train,
+            #     "valid": losses_valid,
+            #     "epoch_train_time": train_time,
+            #     "epoch_valid_time": valid_time,
+            #     "epoch_total_time": total_time,
+            # }
+            # with open(f"{history_path}/epoch_{self.epoch}.json", "w") as f:
+            #     json.dump(stats, f)
 
             # Ray report
             self.ray_report(
@@ -653,9 +661,12 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
                 logging.info(f"Breaking due to stale epochs: {stale_epochs}")
                 break
 
-        if self.strategy.is_main_worker:
-            assert epoch_time_tracker is not None
-            epoch_time_tracker.save()
+            # Sync workers
+            self.strategy.barrier()
+
+        # if self.strategy.is_main_worker:
+        #     assert epoch_time_tracker is not None
+        epoch_time_tracker.save()
 
     def train_epoch(self):
         """Run one training epoch
@@ -670,7 +681,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         progress_bar = tqdm(
             enumerate(self.train_dataloader),
-            total=len(self.train_dataloader) // self.strategy.global_world_size(),
+            total=len(self.train_dataloader),
             desc=f"Epoch {self.epoch} train loop on rank={self.strategy.global_rank()}",
             disable=self.disable_tqdm or not self.strategy.is_main_worker,
             leave=False,  # Set this to true to see how many batches were used
@@ -790,7 +801,7 @@ class MLPFTrainer2(ItwinaiTorchTrainer):
 
         progress_bar = tqdm(
             enumerate(self.validation_dataloader),
-            total=len(self.validation_dataloader) // self.strategy.global_world_size(),
+            total=len(self.validation_dataloader),
             desc=f"Epoch {self.epoch} eval loop on rank={self.strategy.global_rank()}",
             disable=self.disable_tqdm or not self.strategy.is_main_worker,
             leave=False,  # Set this to true to see how many batches were used
